@@ -116,7 +116,7 @@ function DepositForm() {
 ## REST API: Get Deposit Info
 
 ```typescript
-// Get supported tokens
+// Get supported tokens with collateral factors
 GET /v1/public/token
 
 // Response
@@ -129,7 +129,14 @@ GET /v1/public/token
       "address": {
         "42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
-      }
+      },
+      "collateral_factor": 1.0  // USDC counts as 100% collateral
+    },
+    {
+      "token": "USDT",
+      "decimals": 6,
+      "address": { ... },
+      "collateral_factor": 0.95  // USDT counts as 95% collateral
     }
   ]
 }
@@ -140,6 +147,20 @@ GET /v1/public/chain_info
 // Get vault balance (TVL)
 GET /v1/public/vault_balance
 ```
+
+### Understanding Collateral Factors
+
+Each token has a **collateral factor** (0.0 to 1.0) that determines how much of your deposit counts toward trading collateral:
+
+| Token | Collateral Factor | $1000 Deposit = Collateral Value |
+| ----- | ----------------- | -------------------------------- |
+| USDC  | 1.0 (100%)        | $1000                            |
+| USDT  | 0.95 (95%)        | $950                             |
+| Other | Varies            | Depends on risk assessment       |
+
+**Example**: If you deposit $1000 USDT with a 0.95 collateral factor, only $950 counts as collateral for margin calculations.
+
+**Why it matters**: Lower collateral factors require larger deposits to maintain the same position size. Always check the current collateral factor before depositing alternative tokens.
 
 ## Direct Contract Interaction
 

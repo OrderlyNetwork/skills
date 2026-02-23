@@ -64,10 +64,25 @@ Orderly Network uses a **two-layer authentication system** supporting both EVM a
 
 ## Environment Configuration
 
-| Environment | API Base URL                      | WebSocket URL                            | Chain ID             |
-| ----------- | --------------------------------- | ---------------------------------------- | -------------------- |
-| Mainnet     | `https://api.orderly.org`         | `wss://ws.orderly.org/ws/stream`         | 42161 (Arbitrum)     |
-| Testnet     | `https://testnet-api.orderly.org` | `wss://testnet-ws.orderly.org/ws/stream` | 421614 (Arb Sepolia) |
+| Environment | API Base URL                      | WebSocket URL                            |
+| ----------- | --------------------------------- | ---------------------------------------- |
+| Mainnet     | `https://api.orderly.org`         | `wss://ws.orderly.org/ws/stream`         |
+| Testnet     | `https://testnet-api.orderly.org` | `wss://testnet-ws.orderly.org/ws/stream` |
+
+**Note**: These API base URLs work for both EVM and Solana wallets. Orderly's API is omnichain - the same endpoints handle both chains.
+
+### Getting Supported Chains
+
+Don't hardcode chain IDs. Fetch them dynamically for your broker:
+
+```typescript
+// Get supported chains for your broker
+const response = await fetch(`https://api.orderly.org/v1/public/chain_info?broker_id=${BROKER_ID}`);
+
+const { data } = await response.json();
+// data.chains contains supported chain_ids
+// Use these chain IDs for EIP-712 domain configuration
+```
 
 ### EIP-712 Domain Configuration
 
@@ -347,7 +362,7 @@ const solanaAddress = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'; // Base58 
 
 // Solana accounts require chain_type=SOL parameter
 const response = await fetch(
-  `https://testnet-api-evm.orderly.org/v1/get_account?` +
+  `https://testnet-api.orderly.org/v1/get_account?` +
     `address=${solanaAddress}&` +
     `broker_id=${BROKER_ID}&` +
     `chain_type=SOL`
@@ -396,7 +411,7 @@ walletAdapter.active({
 ### Step 1: Fetch Registration Nonce
 
 ```typescript
-const nonceResponse = await fetch('https://testnet-api-evm.orderly.org/v1/registration_nonce');
+const nonceResponse = await fetch('https://testnet-api.orderly.org/v1/registration_nonce');
 const { data: nonce } = await nonceResponse.json();
 ```
 
@@ -417,7 +432,7 @@ const signature = await wallet.signMessage(registerMessage.message);
 ### Step 3: Submit Registration
 
 ```typescript
-const registerResponse = await fetch('https://testnet-api-evm.orderly.org/v1/register_account', {
+const registerResponse = await fetch('https://testnet-api.orderly.org/v1/register_account', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -467,7 +482,7 @@ const signature = await wallet.signMessage(addKeyMessage.message);
 ### Submit Orderly Key
 
 ```typescript
-const keyResponse = await fetch('https://testnet-api-evm.orderly.org/v1/orderly_key', {
+const keyResponse = await fetch('https://testnet-api.orderly.org/v1/orderly_key', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -549,19 +564,14 @@ const res = await fetch(`${BASE_URL}/v1/settle_pnl`, {
 });
 ```
 
-## Solana Environment Configuration
+## Solana-Specific Configuration
 
-| Environment | Chain ID  | API Base URL                          | Cluster        |
-| ----------- | --------- | ------------------------------------- | -------------- |
-| Mainnet     | 900900900 | `https://api-evm.orderly.org`         | `mainnet-beta` |
-| Testnet     | 901901901 | `https://testnet-api-evm.orderly.org` | `devnet`       |
+| Environment | Solana Chain ID | Solana Cluster | Orderly Vault Address                          | Verifying Contract                           |
+| ----------- | --------------- | -------------- | ---------------------------------------------- | -------------------------------------------- |
+| Mainnet     | 900900900       | `mainnet-beta` | `ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q` | `0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203` |
+| Testnet     | 901901901       | `devnet`       | `9shwxWDUNhtwkHocsUAmrNAQfBH2DHh4njdAEdHZZkF2` | `0x1826B75e2ef249173FC735149AE4B8e9ea10abff` |
 
-## Solana Contract Addresses
-
-| Network | Vault Address                                  | Verifying Contract                           |
-| ------- | ---------------------------------------------- | -------------------------------------------- |
-| Mainnet | `ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q` | `0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203` |
-| Testnet | `9shwxWDUNhtwkHocsUAmrNAQfBH2DHh4njdAEdHZZkF2` | `0x1826B75e2ef249173FC735149AE4B8e9ea10abff` |
+**Note**: API base URLs are the same for EVM and Solana. See the [Environment Configuration](#environment-configuration) section at the top of this skill.
 
 ## Important Differences
 

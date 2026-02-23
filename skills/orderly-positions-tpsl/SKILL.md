@@ -424,6 +424,70 @@ interface RiskMetrics {
 GET / v1 / client / holding;
 ```
 
+## Margin vs Collateral: Understanding the Hierarchy
+
+Orderly uses a multi-layer risk system. Here's how the pieces fit together:
+
+```
+Your Deposit
+     ↓
+[Collateral Factor] → Determines effective collateral value
+     ↓
+Effective Collateral (what you can actually use)
+     ↓
+[IMR/MMR] → Required margin per position
+     ↓
+Used Collateral (locked in positions)
+     ↓
+Free Collateral (available for new trades)
+```
+
+### The Three Layers Explained
+
+**1. Collateral Factor (Token Level)**
+
+- Set per token by Orderly risk team
+- Example: USDC = 1.0, USDT = 0.95
+- Applied when you deposit: $1000 USDT × 0.95 = $950 effective collateral
+- **Where to find it**: `GET /v1/public/token`
+
+**2. IMR/MMR (Position Level)**
+
+- **IMR (Initial Margin Ratio)**: Minimum collateral needed to OPEN a position
+- **MMR (Maintenance Margin Ratio)**: Minimum collateral needed to KEEP a position open
+- Determined by leverage: 10x leverage = 10% IMR, ~5% MMR
+- Applied to position notional: $10,000 position × 10% IMR = $1,000 required
+- **Where to find it**: Position object or symbol info
+
+**3. Account Margin Ratio (Account Level)**
+
+- `margin_ratio = total_collateral / total_notional`
+- If this drops toward MMR, you're approaching liquidation
+- **Where to find it**: `GET /v1/client/holding`
+
+### Calculation Example
+
+```
+Deposit: $10,000 USDC (collateral_factor = 1.0)
+Effective Collateral: $10,000
+
+Open Position: $50,000 ETH-PERP at 10x leverage
+IMR Required: $50,000 × 10% = $5,000
+MMR Required: $50,000 × 5% = $2,500
+
+After opening:
+- Used Collateral: $5,000
+- Free Collateral: $5,000
+- Margin Ratio: $10,000 / $50,000 = 20%
+
+Liquidation happens when:
+- Margin Ratio drops to MMR (5%)
+- That means your collateral drops to $2,500
+- Or position grows to $200,000 notional
+```
+
+**Key Takeaway**: You need sufficient effective collateral (after collateral factor) to meet IMR requirements (determined by leverage). The margin_ratio tells you how close you are to liquidation (determined by MMR).
+
 ## Common Issues
 
 ### "Position would exceed max leverage" error
