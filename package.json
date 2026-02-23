@@ -1,0 +1,49 @@
+{
+  "name": "@orderly.network/skills",
+  "version": "0.1.0",
+  "description": "AI Agent Skills for Orderly Network - Perpetual Futures Trading Infrastructure",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint scripts --ext .ts",
+    "lint:fix": "eslint scripts --ext .ts --fix",
+    "format": "prettier --write \"**/*.{ts,md,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,md,json}\"",
+    "validate": "node --import tsx scripts/validate-skills.ts",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "orderly",
+    "orderly-network",
+    "skills",
+    "ai-agent",
+    "trading",
+    "defi",
+    "perpetuals"
+  ],
+  "author": "Orderly Network",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "yaml": "^2.8.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}
