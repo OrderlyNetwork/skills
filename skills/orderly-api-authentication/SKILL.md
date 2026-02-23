@@ -43,11 +43,10 @@ Orderly uses Ed25519 elliptic curve signatures for API authentication:
 ## Generating Ed25519 Key Pair
 
 ```typescript
-import { getPublicKeyAsync } from '@noble/ed25519';
-import { randomBytes } from 'crypto';
+import { getPublicKeyAsync, utils } from '@noble/ed25519';
 
-// Generate private key (32 bytes)
-const privateKey = randomBytes(32);
+// Generate private key (32 cryptographically secure random bytes)
+const privateKey = utils.randomPrivateKey();
 
 // Derive public key
 const publicKey = await getPublicKeyAsync(privateKey);
@@ -82,7 +81,14 @@ function encodeBase58(bytes: Uint8Array): string {
 
 const orderlyKey = `ed25519:${encodeBase58(publicKey)}`;
 
-console.log('Private Key (hex):', Buffer.from(privateKey).toString('hex'));
+// Convert bytes to hex string (browser & Node.js compatible)
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+console.log('Private Key (hex):', bytesToHex(privateKey));
 console.log('Public Key (base58):', orderlyKey);
 
 // STORE PRIVATE KEY SECURELY - NEVER SHARE IT
@@ -134,7 +140,9 @@ async function signRequest(
   const signatureBytes = await signAsync(new TextEncoder().encode(message), privateKey);
 
   // Encode as base64url (NOT base64)
-  return Buffer.from(signatureBytes).toString('base64url');
+  // Convert to base64, then make it URL-safe
+  const base64 = btoa(String.fromCharCode(...signatureBytes));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 ```
 
@@ -165,7 +173,9 @@ class OrderlyClient {
   ): Promise<string> {
     const message = `${timestamp}${method}${path}${body || ''}`;
     const signature = await signAsync(new TextEncoder().encode(message), this.config.privateKey);
-    return Buffer.from(signature).toString('base64url');
+    // Convert to base64url (browser & Node.js compatible)
+    const base64 = btoa(String.fromCharCode(...signature));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 
   private async request<T>(method: string, path: string, body?: any): Promise<T> {
@@ -366,7 +376,15 @@ const privateKey = new Uint8Array([1, 2, 3, ...]);
 
 // GOOD: Load from environment
 const privateKeyHex = process.env.ORDERLY_PRIVATE_KEY;
-const privateKey = Buffer.from(privateKeyHex, 'hex');
+// Convert hex string to Uint8Array (browser & Node.js compatible)
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+const privateKey = hexToBytes(privateKeyHex);
 
 // BETTER: Use secure key management
 // AWS KMS, HashiCorp Vault, etc.
@@ -376,7 +394,7 @@ const privateKey = Buffer.from(privateKeyHex, 'hex');
 
 ```typescript
 // Generate new key pair
-const newPrivateKey = crypto.getRandomValues(new Uint8Array(32));
+const newPrivateKey = utils.randomPrivateKey();
 const newPublicKey = await getPublicKeyAsync(newPrivateKey);
 
 // Register new key (requires wallet signature)
@@ -421,13 +439,17 @@ ws.onopen = async () => {
 
   const signature = await signAsync(new TextEncoder().encode(message), privateKey);
 
+  // Convert to base64url (browser & Node.js compatible)
+  const base64 = btoa(String.fromCharCode(...signature));
+  const base64url = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
   ws.send(
     JSON.stringify({
       id: 'auth_1',
       event: 'auth',
       params: {
         orderly_key: orderlyKey,
-        sign: Buffer.from(signature).toString('base64url'),
+        sign: base64url,
         timestamp: timestamp,
       },
     })

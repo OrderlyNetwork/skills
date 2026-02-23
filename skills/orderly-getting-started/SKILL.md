@@ -147,10 +147,10 @@ console.log('Account ID:', result.data.account_id);
 Generate an Ed25519 key pair for API authentication:
 
 ```typescript
-import { getPublicKeyAsync } from '@noble/ed25519';
+import { getPublicKeyAsync, utils } from '@noble/ed25519';
 
-// Generate 32-byte private key
-const privateKey = crypto.getRandomValues(new Uint8Array(32));
+// Generate 32-byte private key (cryptographically secure)
+const privateKey = utils.randomPrivateKey();
 
 // Derive public key
 const publicKey = await getPublicKeyAsync(privateKey);
@@ -171,8 +171,16 @@ function encodeBase58(bytes: Uint8Array): string {
 }
 
 const orderlyKey = `ed25519:${encodeBase58(publicKey)}`;
+
+// Convert bytes to hex string (browser & Node.js compatible)
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 console.log('Orderly Key:', orderlyKey);
-console.log('Secret Key (STORE SECURELY!):', Buffer.from(privateKey).toString('hex'));
+console.log('Secret Key (STORE SECURELY!):', bytesToHex(privateKey));
 ```
 
 ## Step 6: Sign Add Orderly Key Message (EIP-712)

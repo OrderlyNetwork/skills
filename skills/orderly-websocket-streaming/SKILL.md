@@ -191,6 +191,10 @@ ws.onopen = async () => {
 
   const signature = await signAsync(new TextEncoder().encode(message), privateKey);
 
+  // Encode as base64url (browser & Node.js compatible)
+  const base64 = btoa(String.fromCharCode(...signature));
+  const base64url = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
   // Send authentication
   ws.send(
     JSON.stringify({
@@ -198,7 +202,7 @@ ws.onopen = async () => {
       event: 'auth',
       params: {
         orderly_key: `ed25519:${publicKeyBase58}`,
-        sign: Buffer.from(signature).toString('base64url'),
+        sign: base64url,
         timestamp: timestamp,
       },
     })

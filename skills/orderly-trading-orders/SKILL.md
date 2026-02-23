@@ -67,6 +67,10 @@ async function placeOrder(order: OrderRequest) {
 
   const signature = await signAsync(new TextEncoder().encode(message), privateKey);
 
+  // Encode as base64url (browser & Node.js compatible)
+  const base64 = btoa(String.fromCharCode(...signature));
+  const base64url = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
   const response = await fetch('https://api.orderly.org/v1/order', {
     method: 'POST',
     headers: {
@@ -74,7 +78,7 @@ async function placeOrder(order: OrderRequest) {
       'orderly-timestamp': String(timestamp),
       'orderly-account-id': accountId,
       'orderly-key': `ed25519:${publicKeyBase58}`,
-      'orderly-signature': Buffer.from(signature).toString('base64url'),
+      'orderly-signature': base64url,
     },
     body,
   });
