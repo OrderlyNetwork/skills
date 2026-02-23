@@ -146,120 +146,98 @@ async function signRequest(
 }
 ```
 
-## Complete API Client
+## Sign and Send Request Helper
+
+For a simple, standalone authentication helper that always works correctly with query parameters and proper Content-Type headers:
 
 ```typescript
-import { signAsync } from '@noble/ed25519';
+import { getPublicKeyAsync, signAsync } from '@noble/ed25519';
+import { encodeBase58 } from 'ethers';
 
-interface OrderlyConfig {
-  accountId: string;
-  orderlyKey: string; // ed25519:{base58PublicKey}
-  privateKey: Uint8Array;
-  baseUrl: string; // 'https://api.orderly.org' or 'https://testnet-api.orderly.org'
-}
+export async function signAndSendRequest(
+  orderlyAccountId: string,
+  privateKey: Uint8Array | string,
+  input: URL | string,
+  init?: RequestInit | undefined
+): Promise<Response> {
+  const timestamp = Date.now();
+  const encoder = new TextEncoder();
 
-class OrderlyClient {
-  private config: OrderlyConfig;
-
-  constructor(config: OrderlyConfig) {
-    this.config = config;
+  const url = new URL(input);
+  let message = `${String(timestamp)}${init?.method ?? 'GET'}${url.pathname}${url.search}`;
+  if (init?.body) {
+    message += init.body;
   }
+  const orderlySignature = await signAsync(encoder.encode(message), privateKey);
 
-  private async sign(
-    timestamp: number,
-    method: string,
-    path: string,
-    body?: string
-  ): Promise<string> {
-    const message = `${timestamp}${method}${path}${body || ''}`;
-    const signature = await signAsync(new TextEncoder().encode(message), this.config.privateKey);
-    // Convert to base64url (browser & Node.js compatible)
-    const base64 = btoa(String.fromCharCode(...signature));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  private async request<T>(method: string, path: string, body?: any): Promise<T> {
-    const timestamp = Date.now();
-    const bodyStr = body ? JSON.stringify(body) : undefined;
-    const signature = await this.sign(timestamp, method, path, bodyStr);
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+  return fetch(input, {
+    headers: {
+      'Content-Type':
+        init?.method !== 'GET' && init?.method !== 'DELETE'
+          ? 'application/json'
+          : 'application/x-www-form-urlencoded',
       'orderly-timestamp': String(timestamp),
-      'orderly-account-id': this.config.accountId,
-      'orderly-key': this.config.orderlyKey,
-      'orderly-signature': signature,
-    };
-
-    const options: RequestInit = {
-      method,
-      headers,
-    };
-
-    if (bodyStr) {
-      options.body = bodyStr;
-    }
-
-    const response = await fetch(`${this.config.baseUrl}${path}`, options);
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new OrderlyApiError(result);
-    }
-
-    return result.data;
-  }
-
-  // Public endpoints (no auth required for some)
-  async getMarkets() {
-    return this.request('GET', '/v1/public/futures');
-  }
-
-  async getOrderbook(symbol: string) {
-    return this.request('GET', `/v1/orderbook/${symbol}`);
-  }
-
-  // Private endpoints
-  async getPositions() {
-    return this.request('GET', '/v1/positions');
-  }
-
-  async getBalance() {
-    return this.request('GET', '/v1/client/holding');
-  }
-
-  async getOrders(options?: { symbol?: string; status?: string }) {
-    const params = new URLSearchParams();
-    if (options?.symbol) params.set('symbol', options.symbol);
-    if (options?.status) params.set('status', options.status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request('GET', `/v1/orders${query}`);
-  }
-
-  async placeOrder(order: {
-    symbol: string;
-    side: 'BUY' | 'SELL';
-    order_type: string;
-    order_price?: string;
-    order_quantity: string;
-  }) {
-    return this.request('POST', '/v1/order', order);
-  }
-
-  async cancelOrder(orderId: string, symbol: string) {
-    return this.request('DELETE', `/v1/order?order_id=${orderId}&symbol=${symbol}`);
-  }
-
-  async cancelAllOrders(symbol?: string) {
-    const query = symbol ? `?symbol=${symbol}` : '';
-    return this.request('DELETE', `/v1/orders${query}`);
-  }
-
-  async setLeverage(symbol: string, leverage: number) {
-    return this.request('POST', '/v1/client/leverage', { symbol, leverage });
-  }
+      'orderly-account-id': orderlyAccountId,
+      'orderly-key': `ed25519:${encodeBase58(await getPublicKeyAsync(privateKey))}`,
+      'orderly-signature': Buffer.from(orderlySignature).toString('base64url'),
+      ...(init?.headers ?? {}),
+    },
+    ...(init ?? {}),
+  });
 }
+```
 
+This helper function:
+
+- Properly parses the URL to extract both pathname and search (query) parameters
+- Correctly sets Content-Type based on HTTP method (GET/DELETE use `application/x-www-form-urlencoded`, others use `application/json`)
+- Constructs the signature message with timestamp + method + pathname + search + body
+- Returns the fetch response for further processing
+
+### Usage Examples
+
+```typescript
+const baseUrl = 'https://api.orderly.org';
+const accountId = '0x123...';
+const privateKey = new Uint8Array(32); // Your private key
+
+// GET request with query parameters
+const positions = await signAndSendRequest(accountId, privateKey, `${baseUrl}/v1/positions`);
+const positionsData = await positions.json();
+
+// GET request with query params
+const orders = await signAndSendRequest(
+  accountId,
+  privateKey,
+  `${baseUrl}/v1/orders?symbol=PERP_ETH_USDC&status=INCOMPLETE`
+);
+const ordersData = await orders.json();
+
+// POST request with body
+const order = await signAndSendRequest(accountId, privateKey, `${baseUrl}/v1/order`, {
+  method: 'POST',
+  body: JSON.stringify({
+    symbol: 'PERP_ETH_USDC',
+    side: 'BUY',
+    order_type: 'LIMIT',
+    order_price: '3000',
+    order_quantity: '0.1',
+  }),
+});
+const orderData = await order.json();
+
+// DELETE request
+const cancel = await signAndSendRequest(
+  accountId,
+  privateKey,
+  `${baseUrl}/v1/order?order_id=123&symbol=PERP_ETH_USDC`,
+  { method: 'DELETE' }
+);
+```
+
+### Error Handling Helper
+
+```typescript
 class OrderlyApiError extends Error {
   code: number;
   details: any;
@@ -271,39 +249,38 @@ class OrderlyApiError extends Error {
   }
 }
 
-// Usage
-const client = new OrderlyClient({
-  accountId: '0x123...',
-  orderlyKey: 'ed25519:5Yw...',
-  privateKey: new Uint8Array(32), // Your private key
-  baseUrl: 'https://api.orderly.org',
-});
+// Usage with error handling
+async function apiRequest(
+  accountId: string,
+  privateKey: Uint8Array,
+  url: string,
+  init?: RequestInit
+) {
+  const response = await signAndSendRequest(accountId, privateKey, url, init);
+  const result = await response.json();
 
-// Get positions
-const positions = await client.getPositions();
+  if (!result.success) {
+    throw new OrderlyApiError(result);
+  }
 
-// Place order
-const order = await client.placeOrder({
-  symbol: 'PERP_ETH_USDC',
-  side: 'BUY',
-  order_type: 'LIMIT',
-  order_price: '3000',
-  order_quantity: '0.1',
-});
+  return result.data;
+}
 ```
 
 ## Query Parameters
 
-For GET requests with query parameters, include them in the path:
+Query parameters must be included in the signature message. The URL is parsed to extract both pathname and search parameters:
 
 ```typescript
-// Correct - include query params in path
-const path = '/v1/orders?symbol=PERP_ETH_USDC&status=INCOMPLETE';
-const signature = await sign(timestamp, 'GET', path);
+// Correct - query params are parsed from the URL
+const url = new URL('/v1/orders?symbol=PERP_ETH_USDC&status=INCOMPLETE', baseUrl);
+// Message: timestamp + method + pathname + search
+// Result: "1234567890123GET/v1/orders?symbol=PERP_ETH_USDC&status=INCOMPLETE"
 
-// Wrong - query params not in path
+// Wrong - query params added separately after signing
 const path = '/v1/orders';
-// Query params added separately will cause signature mismatch
+const signature = await sign(timestamp, 'GET', path);
+const url = `${path}?symbol=PERP_ETH_USDC`; // Signature mismatch!
 ```
 
 ## Common Errors
