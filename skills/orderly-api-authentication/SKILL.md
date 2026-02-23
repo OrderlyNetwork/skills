@@ -369,20 +369,94 @@ const privateKey = hexToBytes(privateKeyHex);
 
 ### Key Rotation
 
+Rotate your API keys periodically for security:
+
 ```typescript
 // Generate new key pair
 const newPrivateKey = utils.randomPrivateKey();
 const newPublicKey = await getPublicKeyAsync(newPrivateKey);
 
-// Register new key (requires wallet signature)
-await registerNewKey(newPublicKey);
+// Register new key (requires wallet signature via EIP-712)
+// POST /v1/orderly_key - No Ed25519 auth required
+const orderlyKey = `ed25519:${encodeBase58(newPublicKey)}`;
+const timestamp = Date.now();
+const expiration = timestamp + 31536000000; // 1 year
+
+const addKeyMessage = {
+  brokerId: 'your_broker_id',
+  chainId: 42161, // Arbitrum mainnet
+  orderlyKey: orderlyKey,
+  scope: 'read,trading', // Comma-separated scopes
+  timestamp: timestamp,
+  expiration: expiration,
+};
+
+// Sign with wallet (EIP-712)
+const addKeySignature = await wallet.signTypedData({
+  domain: {
+    name: 'Orderly',
+    version: '1',
+    chainId: 42161,
+    verifyingContract: '0x...', // Contract address
+  },
+  types: {
+    EIP712Domain: [
+      { name: 'name', type: 'string' },
+      { name: 'version', type: 'string' },
+      { name: 'chainId', type: 'uint256' },
+      { name: 'verifyingContract', type: 'address' },
+    ],
+    AddOrderlyKey: [
+      { name: 'brokerId', type: 'string' },
+      { name: 'chainId', type: 'uint256' },
+      { name: 'orderlyKey', type: 'string' },
+      { name: 'scope', type: 'string' },
+      { name: 'timestamp', type: 'uint256' },
+      { name: 'expiration', type: 'uint256' },
+    ],
+  },
+  primaryType: 'AddOrderlyKey',
+  message: addKeyMessage,
+});
+
+const registerResponse = await fetch('https://api.orderly.org/v1/orderly_key', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    message: addKeyMessage,
+    signature: addKeySignature,
+    userAddress: walletAddress,
+  }),
+});
+
+const registerResult = await registerResponse.json();
+if (!registerResult.success) {
+  throw new Error(`Failed to register key: ${registerResult.message}`);
+}
 
 // Update your application config
 config.privateKey = newPrivateKey;
-config.orderlyKey = `ed25519:${encodeBase58(newPublicKey)}`;
+config.orderlyKey = orderlyKey;
 
-// Remove old key (optional)
-await removeOldKey(oldPublicKey);
+// Remove old key using authenticated request
+// POST /v1/client/remove_orderly_key - Requires Ed25519 auth
+const oldOrderlyKey = `ed25519:${encodeBase58(oldPublicKey)}`;
+const removeResponse = await signAndSendRequest(
+  accountId,
+  newPrivateKey, // Use the NEW key to authenticate
+  'https://api.orderly.org/v1/client/remove_orderly_key',
+  {
+    method: 'POST',
+    body: JSON.stringify({
+      orderly_key: oldOrderlyKey,
+    }),
+  }
+);
+
+const removeResult = await removeResponse.json();
+if (!removeResult.success) {
+  throw new Error(`Failed to remove old key: ${removeResult.message}`);
+}
 ```
 
 ### IP Restrictions
