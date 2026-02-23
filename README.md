@@ -20,7 +20,7 @@ npx skills add orderly-network/orderly-skills --list
 npx skills add orderly-network/orderly-skills --skill orderly-trading-orders
 
 # Install multiple skills
-npx skills add orderly-network/orderly-skills --skill orderly-getting-started --skill orderly-api-authentication
+npx skills add orderly-network/orderly-skills --skill orderly-api-authentication --skill orderly-trading-orders
 
 # Install all skills
 npx skills add orderly-network/orderly-skills --skill '*'
@@ -28,29 +28,43 @@ npx skills add orderly-network/orderly-skills --skill '*'
 
 ## Available Skills
 
-| Skill                         | Description                                                                                |
-| ----------------------------- | ------------------------------------------------------------------------------------------ |
-| `orderly-getting-started`     | Complete onboarding workflow - wallet connection, account registration, API key generation |
-| `orderly-trading-orders`      | Place, manage, and cancel orders via REST API or SDK hooks                                 |
-| `orderly-positions-tpsl`      | Monitor positions, configure TP/SL, manage leverage                                        |
-| `orderly-websocket-streaming` | Real-time WebSocket connections for orderbook, executions, positions                       |
-| `orderly-deposit-withdraw`    | Token deposits, withdrawals, and cross-chain operations                                    |
-| `orderly-sdk-react-hooks`     | Reference for all Orderly React SDK hooks                                                  |
-| `orderly-ui-components`       | Pre-built React UI components for trading interfaces                                       |
-| `orderly-api-authentication`  | Ed25519 signature authentication for REST API                                              |
-| `orderly-one-dex`             | Create and manage custom DEX with Orderly One API                                          |
+| Skill                         | Description                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `orderly-api-authentication`  | Complete authentication - EIP-712 (EVM) or Ed25519 message (Solana) signing for account/keys, Ed25519 for API calls |
+| `orderly-trading-orders`      | Place, manage, and cancel orders via REST API or SDK hooks                                                          |
+| `orderly-positions-tpsl`      | Monitor positions, configure TP/SL, manage leverage                                                                 |
+| `orderly-websocket-streaming` | Real-time WebSocket connections for orderbook, executions, positions                                                |
+| `orderly-deposit-withdraw`    | Token deposits, withdrawals, and cross-chain operations                                                             |
+| `orderly-sdk-react-hooks`     | Reference for all Orderly React SDK hooks                                                                           |
+| `orderly-ui-components`       | Pre-built React UI components for trading interfaces                                                                |
+| `orderly-one-dex`             | Create and manage custom DEX with Orderly One API                                                                   |
 
 ## Skill Details
 
-### orderly-getting-started
+### orderly-api-authentication
 
-Complete onboarding workflow covering:
+Complete two-layer authentication system:
 
-- Wallet connection (EVM & Solana)
-- EIP-712 signing for account registration
+**Wallet Authentication (Layer 1):**
+
+- EVM: EIP-712 wallet signatures for account registration and key management
+- Solana: Ed25519 message signing for account registration and key management
+
+**API Authentication (Layer 2):**
+
 - Ed25519 key pair generation
-- API key registration
-- Quick setup with React SDK
+- Ed25519 request signing for REST API (EVM and Solana)
+- WebSocket authentication
+
+**Environment & Configuration:**
+
+- Environment configuration (mainnet/testnet)
+- Supported chains reference (EVM and Solana)
+- Contract addresses (vault, verifying contracts)
+- Ed25519 request signing for REST API
+- WebSocket authentication
+- Environment configuration (mainnet/testnet)
+- Supported chains reference
 
 ### orderly-trading-orders
 
@@ -111,16 +125,6 @@ Pre-built components:
 - Charts (TradingView, Lightweight)
 - Tables, Sheets, Modals
 
-### orderly-api-authentication
-
-Authentication implementation:
-
-- Ed25519 key generation
-- Message construction
-- Signature creation
-- Header formatting
-- Complete API client example
-
 ### orderly-one-dex
 
 Custom DEX management:
@@ -169,11 +173,11 @@ yarn format:check
 ```
 orderly-skills/
 ├── skills/
-│   ├── orderly-getting-started/
+│   ├── orderly-api-authentication/
 │   │   └── SKILL.md
 │   ├── orderly-trading-orders/
 │   │   └── SKILL.md
-│   └── ... (7 more skills)
+│   └── ... (6 more skills)
 ├── scripts/
 │   └── validate-skills.ts
 ├── package.json
