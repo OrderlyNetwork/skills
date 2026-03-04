@@ -7,23 +7,23 @@ AI Agent Skills for Orderly Network - Perpetual Futures Trading Infrastructure.
 Install all skills with the `skills` CLI:
 
 ```bash
-npx skills add orderly-network/orderly-skills
+npx skills add @orderly.network/skills
 ```
 
 Install specific skills:
 
 ```bash
 # List available skills first
-npx skills add orderly-network/orderly-skills --list
+npx skills add @orderly.network/skills --list
 
 # Install specific skill
-npx skills add orderly-network/orderly-skills --skill orderly-trading-orders
+npx skills add @orderly.network/skills --skill orderly-trading-orders
 
 # Install multiple skills
-npx skills add orderly-network/orderly-skills --skill orderly-api-authentication --skill orderly-trading-orders
+npx skills add @orderly.network/skills --skill orderly-api-authentication --skill orderly-trading-orders
 
 # Install all skills
-npx skills add orderly-network/orderly-skills --skill '*'
+npx skills add @orderly.network/skills --skill '*'
 ```
 
 ## Available Skills

@@ -171,20 +171,20 @@ Install Orderly skills to enhance your AI agent with procedural knowledge for bu
 **Install all skills:**
 
 ```bash
-npx skills add orderly-network/orderly-skills
+npx skills add @orderly.network/skills
 ```
 
 **Install specific skills:**
 
 ```bash
 # List available skills
-npx skills add orderly-network/orderly-skills --list
+npx skills add @orderly.network/skills --list
 
 # Install specific skill
-npx skills add orderly-network/orderly-skills --skill orderly-trading-orders
+npx skills add @orderly.network/skills --skill orderly-trading-orders
 
 # Install multiple skills
-npx skills add orderly-network/orderly-skills --skill orderly-api-authentication --skill orderly-trading-orders
+npx skills add @orderly.network/skills --skill orderly-api-authentication --skill orderly-trading-orders
 ```
 
 **Available Skills:**
