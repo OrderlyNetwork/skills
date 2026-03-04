@@ -480,6 +480,5 @@ POST https://testnet-operator-sol.orderly.org/v1/faucet/usdc
 
 ## Related Skills
 
-- **orderly-getting-started** - Account setup
-- **orderly-contract-addresses** - Vault/token addresses
-- **orderly-api-authentication** - Signing withdrawal requests
+- **orderly-onboarding** - Account setup and getting started
+- **orderly-api-authentication** - Signing withdrawal requests and contract addresses

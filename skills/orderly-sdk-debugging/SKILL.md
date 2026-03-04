@@ -289,7 +289,7 @@ const positions = useDebugHook('positions', usePositionStream().positions);
 ### CORS Errors
 
 ```
-Access to fetch at 'https://api.orderly.network/...' has been blocked by CORS
+Access to fetch at 'https://api.orderly.org/...' has been blocked by CORS
 ```
 
 **Solutions**:

@@ -338,7 +338,7 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 | Resource         | URL                                                       |
 | ---------------- | --------------------------------------------------------- |
 | Documentation    | https://orderly.network/docs                              |
-| SDK Repository   | https://github.com/OrderlyNetwork/js-sdk                  |
+| SDK Repository   | https://github.com/orderlynetwork/js-sdk                  |
 | Example DEX      | https://github.com/orderlynetwork/example-dex             |
 | MCP Server (npm) | https://www.npmjs.com/package/@orderly.network/mcp-server |
 | Skills (npm)     | https://www.npmjs.com/package/@orderly.network/skills     |

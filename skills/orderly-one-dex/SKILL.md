@@ -157,17 +157,17 @@ Both `POST /api/dex` (create) and `PUT /api/dex/{id}` (update) use `multipart/fo
 
 **EVM Wallet:** 4. Register with Orderly Network API:
 
-- `GET https://api.orderly.network/v1/registration_nonce`
+- `GET https://api.orderly.org/v1/registration_nonce`
 - Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }`
-- `POST https://api.orderly.network/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
+- `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
 
 5. `POST /api/graduation/finalize-admin-wallet` (empty body)
 
 **Solana Wallet:** 4. Register with Orderly Network API:
 
-- `GET https://api.orderly.network/v1/registration_nonce`
+- `GET https://api.orderly.org/v1/registration_nonce`
 - Sign message with Solana wallet: `{ brokerId, chainId: 900900900, timestamp, registrationNonce }`
-- `POST https://api.orderly.network/v1/register_account` with `{ message, signature, userAddress, chainType: "SOL" }`
+- `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "SOL" }`
 
 5. `POST /api/graduation/finalize-admin-wallet` (empty body)
 
