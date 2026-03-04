@@ -30,6 +30,7 @@ npx skills add orderly-network/orderly-skills --skill '*'
 
 | Skill                         | Description                                                                                                         |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `orderly-onboarding`          | **START HERE** - Agent onboarding, MCP server setup, skills overview, and developer quickstart                      |
 | `orderly-api-authentication`  | Complete authentication - EIP-712 (EVM) or Ed25519 message (Solana) signing for account/keys, Ed25519 for API calls |
 | `orderly-trading-orders`      | Place, manage, and cancel orders via REST API or SDK hooks                                                          |
 | `orderly-positions-tpsl`      | Monitor positions, configure TP/SL, manage leverage                                                                 |
@@ -40,6 +41,30 @@ npx skills add orderly-network/orderly-skills --skill '*'
 | `orderly-one-dex`             | Create and manage custom DEX with Orderly One API                                                                   |
 
 ## Skill Details
+
+### orderly-onboarding
+
+**START HERE** if you're new to Orderly Network.
+
+This skill provides:
+
+- **Overview**: What Orderly is and how it works
+- **Architecture**: How the omnichain orderbook infrastructure fits together
+- **AI Agent Tools**: MCP server installation and agent skills setup
+- **Getting Started**: Directives for builders, API developers, and DEX creators
+- **Key Links**: Documentation, SDK, example DEX, Discord
+
+**Install MCP Server:**
+
+```bash
+npx @orderly.network/mcp-server init --client <claude|cursor|vscode|codex|opencode>
+```
+
+**Load Recommended Skills:**
+
+- **Building a DEX**: orderly-sdk-install-dependency, orderly-sdk-dex-architecture, orderly-sdk-wallet-connection
+- **API/Bot Development**: orderly-api-authentication, orderly-trading-orders
+- **Custom DEX (Orderly One)**: orderly-one-dex
 
 ### orderly-api-authentication
 
