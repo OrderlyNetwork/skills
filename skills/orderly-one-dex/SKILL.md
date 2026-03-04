@@ -5,616 +5,208 @@ description: Create and manage a custom DEX using Orderly One API - deployment, 
 
 # Orderly Network: Orderly One DEX
 
-This skill covers creating and managing a custom DEX using the Orderly One API.
+**Orderly One** is a white-label DEX platform. Users configure a DEX (name, branding, chains), the API forks a GitHub template repo, and GitHub Actions deploys to GitHub Pages. Graduated DEXs earn fee splits.
 
 ## When to Use
 
-- Launching a custom perpetuals DEX
-- White-labeling Orderly's infrastructure
-- Managing DEX deployment and configuration
-- Custom domain and branding setup
+- Creating a custom perpetuals DEX
+- Managing DEX deployment, domains, or themes
+- Handling graduation for fee sharing
 
-## Prerequisites
+## API Base URLs
 
-- Orderly account
-- Understanding of DEX operations
-- Wallet for admin operations
+| Environment | Base URL                                  |
+| ----------- | ----------------------------------------- |
+| Mainnet     | `https://dex-api.orderly.network`         |
+| Testnet     | `https://testnet-dex-api.orderly.network` |
 
-## Overview
+## API Categories
 
-Orderly One allows you to launch your own perpetual futures DEX with:
+Use `get_orderly_one_api_info` MCP tool for full endpoint details.
 
-- Custom branding and theming
-- Custom domain
-- Fee revenue sharing
-- Full trading infrastructure
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Your Custom DEX                           │
-│  - Custom domain (dex.yourproject.com)                      │
-│  - Custom branding (logo, colors, theme)                    │
-│  - Custom fee structure                                      │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Orderly One Platform                       │
-│  - Hosting & deployment                                      │
-│  - Orderbook & matching engine                              │
-│  - Liquidity pool                                           │
-│  - Risk management                                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## API Base URL
-
-```
-https://api.dex.orderly.network
-```
-
-## Authentication
-
-Orderly One uses JWT tokens obtained via wallet signature:
-
-### Get Nonce
-
-```typescript
-GET /api/auth/nonce?wallet_address={address}
-
-// Response
-{
-  "nonce": "abc123...",
-  "expires_at": 1699123456
-}
-```
-
-### Sign and Verify
-
-```typescript
-// 1. Get nonce
-const nonceResponse = await fetch(
-  `https://api.dex.orderly.network/api/auth/nonce?wallet_address=${address}`
-);
-const { nonce } = await nonceResponse.json();
-
-// 2. Sign message
-const message = `Sign this message to authenticate with Orderly One.\n\nNonce: ${nonce}`;
-const signature = await wallet.signMessage(message);
-
-// 3. Verify and get JWT
-const verifyResponse = await fetch('https://api.dex.orderly.network/api/auth/verify', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    wallet_address: address,
-    signature: signature,
-    nonce: nonce,
-  }),
-});
-
-const { token } = await verifyResponse.json();
-// Use this token in Authorization: Bearer {token} header
-```
+| Category        | Description                      | Key Endpoints                                                                               |
+| --------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
+| **auth**        | Wallet signature authentication  | `/api/auth/nonce`, `/api/auth/verify`, `/api/auth/validate`                                 |
+| **dex**         | DEX CRUD, domains, deployment    | `/api/dex`, `/api/dex/{id}`, `/api/dex/{id}/custom-domain`, `/api/dex/{id}/workflow-status` |
+| **theme**       | AI theme generation              | `/api/theme/modify`, `/api/theme/fine-tune`                                                 |
+| **graduation**  | Demo → full DEX with fee sharing | `/api/graduation/status`, `/api/graduation/fee-options`, `/api/graduation/verify-tx`        |
+| **leaderboard** | Cross-DEX rankings               | `/api/leaderboard`, `/api/leaderboard/broker/{brokerId}`                                    |
+| **stats**       | Platform statistics              | `/api/stats`, `/api/stats/swap-fee-config`                                                  |
 
 ---
 
-## DEX Management
+## Create/Update DEX
 
-### Create DEX
+Both `POST /api/dex` (create) and `PUT /api/dex/{id}` (update) use `multipart/form-data`.
 
-```typescript
-POST /api/dex
-Authorization: Bearer {jwt_token}
-Body: {
-  name: "My Perps DEX",
-  subdomain: "mydex",          // mydex.dex.orderly.network
-  description: "Description",
-  logo_url: "https://...",
-  theme: {
-    primary_color: "#6366f1",
-    secondary_color: "#818cf8",
-    background_color: "#0f172a",
-  },
-  trading_pairs: ["PERP_ETH_USDC", "PERP_BTC_USDC"],
-  default_leverage: 10,
-}
+### Required Fields
 
-// Response
-{
-  "id": "dex_123",
-  "name": "My Perps DEX",
-  "subdomain": "mydex",
-  "status": "deploying",
-  "created_at": "2024-01-15T10:00:00Z"
-}
-```
+| Field        | Type   | Constraints                               |
+| ------------ | ------ | ----------------------------------------- |
+| `brokerName` | string | 3-30 chars, alphanumeric/space/dot/hyphen |
 
-### Get DEX
+### Optional Fields
 
-```typescript
-GET /api/dex
-Authorization: Bearer {jwt_token}
+**Chains:**
+| Field | Type | Notes |
+| -------------- | ---------------- | ------------------------ |
+| `chainIds` | number[] (JSON) | e.g. `[42161, 10, 8453]` |
+| `defaultChain` | number | Default chain ID |
 
-// Response
-{
-  "id": "dex_123",
-  "name": "My Perps DEX",
-  "subdomain": "mydex",
-  "status": "active",
-  "domain": "mydex.dex.orderly.network",
-  "custom_domain": "dex.myproject.com",
-  "trading_pairs": ["PERP_ETH_USDC", "PERP_BTC_USDC"],
-  "theme": {...},
-  "fees": {
-    "maker_fee": 0.0002,
-    "taker_fee": 0.0005,
-  },
-  "stats": {
-    "daily_volume": "1000000",
-    "active_users": 500,
-    "total_trades": 50000,
-  }
-}
-```
+**Branding (files):**
+| Field | Type | Max Size |
+| --------------- | ---- | -------- |
+| `primaryLogo` | File | 250KB |
+| `secondaryLogo` | File | 100KB |
+| `favicon` | File | 50KB |
+| `pnlPoster0..N` | File | 250KB ea |
 
-### Update DEX
+**Theming:**
+| Field | Type | Notes |
+| --------------- | ------ | -------------------------------- |
+| `themeCSS` | string | CSS variables to override [default theme](https://raw.githubusercontent.com/OrderlyNetworkDexCreator/dex-creator-template/refs/heads/main/app/styles/theme.css) |
+| `tradingViewColorConfig` | string | JSON for chart colors |
 
-```typescript
-PUT /api/dex/{id}
-Authorization: Bearer {jwt_token}
-Body: {
-  name: "Updated DEX Name",
-  description: "New description",
-  theme: {
-    primary_color: "#10b981",
-    secondary_color: "#34d399",
-    background_color: "#1e293b",
-  },
-  trading_pairs: [
-    "PERP_ETH_USDC",
-    "PERP_BTC_USDC",
-    "PERP_SOL_USDC"
-  ],
-}
+**Social:**
+| Field | Type | Notes |
+| -------------- | ------ | ------------------ |
+| `telegramLink` | string | URL |
+| `discordLink` | string | URL |
+| `xLink` | string | URL |
 
-// Response
-{
-  "success": true,
-  "message": "DEX updated successfully"
-}
-```
+**Auth/Wallet:**
+| Field | Type | Notes |
+| ------------------------ | -------- | -------------------------- |
+| `walletConnectProjectId` | string | WalletConnect project ID |
+| `privyAppId` | string | Privy app ID |
+| `privyTermsOfUse` | string | URL to terms |
+| `privyLoginMethods` | string | Comma-separated |
+| `enableAbstractWallet` | boolean | Enable Abstract wallet |
+| `disableEvmWallets` | boolean | Disable EVM wallets |
+| `disableSolanaWallets` | boolean | Disable Solana wallets |
 
-### Delete DEX
+**Network:**
+| Field | Type | Notes |
+| ------------------ | ------- | -------------------- |
+| `disableMainnet` | boolean | Disable mainnet |
+| `disableTestnet` | boolean | Disable testnet |
 
-```typescript
-DELETE /api/dex/{id}
-Authorization: Bearer {jwt_token}
-Body: {
-  confirmation: "DELETE_MY_DEX"  // Required confirmation string
-}
+**Trading:**
+| Field | Type | Notes |
+| ------------ | -------------- | ------------------------------- |
+| `swapFeeBps` | number (0-100) | Swap fee in basis points (requires "Swap" in enabledMenus) |
+| `symbolList` | string | Comma-separated (PERP_ETH_USDC) |
 
-// Response
-{
-  "success": true,
-  "message": "DEX deletion initiated"
-}
-```
+**Menus:**
+| Field | Type | Notes |
+| -------------- | ------ | ----------------------------- |
+| `enabledMenus` | string | Comma-separated. Options: Trading, Portfolio, Markets, Leaderboard (defaults), Swap, Rewards, Vaults, Points |
+| `customMenus` | string | Format: "Name,URL;Name2,URL2" |
+
+**SEO:**
+| Field | Type | Constraints |
+| ------------------- | ------ | --------------------- |
+| `seoSiteName` | string | max 100 chars |
+| `seoSiteDescription`| string | max 300 chars |
+| `seoSiteLanguage` | string | "en" or "en-US" |
+| `seoSiteLocale` | string | "en_US" |
+| `seoTwitterHandle` | string | "@handle" |
+| `seoThemeColor` | string | "#1a1b23" |
+| `seoKeywords` | string | max 500 chars |
+
+**Other:**
+| Field | Type | Notes |
+| -------------------------- | ------- | ------------------------ |
+| `availableLanguages` | string | JSON array. Options: en, zh, tc, ja, es, ko, vi, de, fr, ru, id, tr, it, pt, uk, pl, nl |
+| `analyticsScript` | string | Base64 encoded |
+| `enableServiceDisclaimerDialog` | boolean | Show disclaimer |
+| `enableCampaigns` | boolean | Enable ORDER token campaigns and Points menu |
+| `restrictedRegions` | string | Comma-separated country names (e.g., "United States,China") |
+| `whitelistedIps` | string | IP whitelist |
+
+### Response
+
+**Create (201):** `{ id, brokerId, brokerName, repoUrl, userId, createdAt }`
+
+**Update (200):** Full DEX object with all fields
 
 ---
 
-## Custom Domain
+## Key Workflows
 
-### Set Custom Domain
+### Authentication
 
-```typescript
-POST /api/dex/{id}/custom-domain
-Authorization: Bearer {jwt_token}
-Body: {
-  domain: "dex.myproject.com"
-}
+1. `POST /api/auth/nonce` with `{ address }` → get message to sign
+2. Sign: `"Sign this message to authenticate with Orderly One: {nonce}"`
+3. `POST /api/auth/verify` with `{ address, signature }` → get JWT
+4. Use `Authorization: Bearer {token}` for all requests
 
-// Response
-{
-  "success": true,
-  "dns_records": [
-    {
-      "type": "CNAME",
-      "name": "dex",
-      "value": "mydex.dex.orderly.network",
-      "ttl": 3600
-    },
-    {
-      "type": "TXT",
-      "name": "_dex-verification",
-      "value": "verify_abc123",
-      "ttl": 3600
-    }
-  ],
-  "status": "pending_verification"
-}
-```
+### Create DEX Flow
 
-### Verify Domain
+1. Build `multipart/form-data` with fields above
+2. `POST /api/dex` → returns `{ id, brokerId, repoUrl }`
+3. Poll `GET /api/dex/{id}/workflow-status` until `conclusion: "success"`
 
-After adding DNS records:
+### Graduation (Fee Sharing)
 
-```typescript
-GET /api/dex/{id}/custom-domain/verify
-Authorization: Bearer {jwt_token}
+1. `GET /api/graduation/fee-options` → USDC/ORDER amounts + `receiverAddress`
+2. Transfer tokens on **Ethereum, Arbitrum, or Base** to `receiverAddress`
+3. `POST /api/graduation/verify-tx` with `{ txHash, chain, chainId, chainType: "EVM", brokerId, makerFee, takerFee, rwaMakerFee, rwaTakerFee, paymentType }` → creates broker ID
 
-// Response
-{
-  "verified": true,
-  "ssl_status": "active",
-  "domain": "dex.myproject.com"
-}
-```
+**After broker ID created, finalize admin wallet:**
 
-### Remove Custom Domain
+**EVM Wallet:** 4. Register with Orderly Network API:
 
-```typescript
-DELETE /api/dex/{id}/custom-domain
-Authorization: Bearer {jwt_token}
-```
+- `GET https://api.orderly.network/v1/registration_nonce`
+- Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }`
+- `POST https://api.orderly.network/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
+
+5. `POST /api/graduation/finalize-admin-wallet` (empty body)
+
+**Solana Wallet:** 4. Register with Orderly Network API:
+
+- `GET https://api.orderly.network/v1/registration_nonce`
+- Sign message with Solana wallet: `{ brokerId, chainId: 900900900, timestamp, registrationNonce }`
+- `POST https://api.orderly.network/v1/register_account` with `{ message, signature, userAddress, chainType: "SOL" }`
+
+5. `POST /api/graduation/finalize-admin-wallet` (empty body)
+
+**EVM Multisig/Gnosis Safe:** 4. In Safe Wallet → Transaction Builder → create batch:
+
+- **To:** Orderly Vault contract (chain-specific)
+- **Method:** `delegateSigner`
+- **Data:** `[keccak256(brokerId), userAddress]`
+
+5. Execute on Safe with required signer approvals
+6. `POST /api/graduation/finalize-admin-wallet` with `{ multisigAddress, multisigChainId }`
 
 ---
 
-## Theme & Branding
+## Orderly MCP
 
-### Update Social Card
+This skill references the Orderly MCP server. If not installed, see **orderly-onboarding** skill for setup.
 
-```typescript
-PUT /api/dex/social-card
-Authorization: Bearer {jwt_token}
-Body: {
-  title: "My Perps DEX - Trade Perpetuals",
-  description: "Trade BTC, ETH perpetuals with up to 50x leverage",
-  image_url: "https://.../og-image.png",
-  twitter_handle: "@myproject",
-}
-```
+**Tool:** `get_orderly_one_api_info`
 
-### AI Theme Generation
-
-```typescript
-POST /api/theme/generate
-Authorization: Bearer {jwt_token}
-Body: {
-  prompt: "A futuristic dark theme with neon blue accents",
-  base_style: "dark",  // "dark" | "light"
-}
-
-// Response
-{
-  "theme": {
-    "primary_color": "#00d4ff",
-    "secondary_color": "#7c3aed",
-    "background_color": "#0a0a0f",
-    "text_color": "#ffffff",
-    "accent_color": "#00ff88",
-    "border_color": "#1e293b",
-    "success_color": "#10b981",
-    "error_color": "#ef4444",
-    "warning_color": "#f59e0b",
-  },
-  "css_vars": "--primary: #00d4ff; ...",
-}
-```
-
----
-
-## Graduation (Demo → Full DEX)
-
-Graduate from demo to full DEX with fee sharing:
-
-### Check Graduation Status
-
-```typescript
-GET /api/graduation/status
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "status": "not_graduated",  // "not_graduated" | "pending" | "graduated"
-  "requirements": {
-    "min_volume": "1000000",
-    "current_volume": "500000",
-    "min_users": 100,
-    "current_users": 75,
-  },
-  "fee_options": [...],
-}
-```
-
-### Get Fee Options
-
-```typescript
-GET /api/graduation/fee-options
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "options": [
-    {
-      "id": "tier_1",
-      "name": "Basic",
-      "fee": "5000",      // USDC
-      "fee_split": 0.5,   // 50% revenue share
-      "features": ["Custom domain", "Basic analytics"]
-    },
-    {
-      "id": "tier_2",
-      "name": "Pro",
-      "fee": "25000",
-      "fee_split": 0.7,
-      "features": ["Custom domain", "Advanced analytics", "Priority support"]
-    },
-    {
-      "id": "tier_3",
-      "name": "Enterprise",
-      "fee": "100000",
-      "fee_split": 0.85,
-      "features": ["Custom domain", "Full analytics", "Dedicated support", "Custom features"]
-    }
-  ]
-}
-```
-
-### Pay Graduation Fee
-
-```typescript
-// 1. Initiate fee payment
-POST /api/graduation/pay
-Authorization: Bearer {jwt_token}
-Body: {
-  tier: "tier_2",
-  payment_method: "wallet",  // "wallet" | "orderly_balance"
-}
-
-// Response
-{
-  "payment_address": "0x...",
-  "amount": "25000",
-  "token": "USDC",
-  "chain_id": 42161,
-  "expires_at": "2024-01-16T10:00:00Z"
-}
-
-// 2. Send payment to address
-
-// 3. Verify transaction
-POST /api/graduation/verify-tx
-Authorization: Bearer {jwt_token}
-Body: {
-  tx_hash: "0x...",
-  chain_id: 42161,
-}
-
-// Response
-{
-  "verified": true,
-  "broker_id": "my_dex_broker",
-  "status": "graduated"
-}
-```
-
-### Get Graduation Status After Payment
-
-```typescript
-GET /api/graduation/graduation-status
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "graduated": true,
-  "broker_id": "my_dex_broker",
-  "tier": "tier_2",
-  "fee_split": 0.7,
-  "graduated_at": "2024-01-15T10:00:00Z"
-}
-```
-
----
-
-## Leaderboard
-
-### Get DEX Leaderboard
-
-```typescript
-GET /api/leaderboard
-Query params:
-  - period: "24h" | "7d" | "30d" | "all"
-  - sort: "volume" | "users" | "trades"
-  - limit: number
-
-// Response
-{
-  "rankings": [
-    {
-      "rank": 1,
-      "dex_id": "dex_123",
-      "name": "Top DEX",
-      "volume": "10000000",
-      "users": 5000,
-      "trades": 100000,
-      "change_24h": "+15.5%",
-    },
-    // ...
-  ],
-  "my_dex": {
-    "rank": 25,
-    // ...
-  }
-}
-```
-
-### Set Leaderboard Visibility
-
-```typescript
-POST /api/dex/{id}/board-visibility
-Authorization: Bearer {jwt_token}
-Body: {
-  visible: true
-}
-```
-
----
-
-## Statistics
-
-### Get DEX Stats
-
-```typescript
-GET /api/dex/{id}/stats
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "volume": {
-    "24h": "1000000",
-    "7d": "7000000",
-    "30d": "30000000",
-    "all_time": "100000000",
-  },
-  "users": {
-    "active_24h": 500,
-    "active_7d": 2000,
-    "total": 10000,
-  },
-  "trades": {
-    "24h": 5000,
-    "7d": 35000,
-    "total": 500000,
-  },
-  "fees": {
-    "24h": "500",
-    "7d": "3500",
-    "total": "50000",
-  },
-  "open_interest": "5000000",
-}
-```
-
----
-
-## Network Selection
-
-### Get Available Networks
-
-```typescript
-GET /api/dex/networks
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "networks": [
-    { "id": "arbitrum", "name": "Arbitrum", "chain_id": 42161 },
-    { "id": "optimism", "name": "Optimism", "chain_id": 10 },
-    { "id": "base", "name": "Base", "chain_id": 8453 },
-    { "id": "ethereum", "name": "Ethereum", "chain_id": 1 },
-    { "id": "solana", "name": "Solana", "chain_id": 900900900 },
-  ]
-}
-```
-
----
-
-## Rate Limiting
-
-```typescript
-GET /api/dex/rate-limit-status
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "requests_remaining": 95,
-  "requests_limit": 100,
-  "reset_at": "2024-01-15T11:00:00Z"
-}
-```
-
----
-
-## Deployment
-
-### Check Workflow Status
-
-```typescript
-GET /api/dex/{id}/workflow-status?workflow=deploy
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "status": "running",  // "pending" | "running" | "success" | "failed"
-  "started_at": "2024-01-15T10:00:00Z",
-  "steps": [
-    { "name": "build", "status": "success" },
-    { "name": "deploy", "status": "running" },
-    { "name": "verify", "status": "pending" },
-  ]
-}
-```
-
-### Upgrade DEX
-
-When new template versions are available:
-
-```typescript
-// Check for updates
-GET /api/dex/{id}/upgrade-status
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "update_available": true,
-  "current_version": "1.0.0",
-  "latest_version": "1.1.0",
-  "changelog": "Bug fixes and performance improvements"
-}
-
-// Trigger upgrade
-POST /api/dex/{id}/upgrade
-Authorization: Bearer {jwt_token}
-
-// Response
-{
-  "status": "upgrading",
-  "estimated_time": "5 minutes"
-}
-```
+- `{ endpoint: "/api/dex" }` - Specific endpoint details
+- `{ category: "graduation" }` - All endpoints in a category
+- `{}` - Full API overview
 
 ---
 
 ## Common Issues
 
-### DEX stuck in "deploying" status
+| Issue                   | Solution                                                     |
+| ----------------------- | ------------------------------------------------------------ |
+| DEX stuck deploying     | Check `/api/dex/{id}/workflow-runs/{runId}` for job failures |
+| Domain not working      | CNAME to `{org}.github.io`, wait for DNS propagation         |
+| Graduation verify fails | Confirm tx to `receiverAddress`, wait for confirmations      |
+| Logo upload fails       | Check file size limits (250KB primary, 100KB secondary)      |
+| Invalid CSS             | Validate `themeCSS` syntax before submitting                 |
 
-- Check workflow status for error details
-- Contact support if issue persists > 30 minutes
-
-### Custom domain not working
-
-- Verify DNS records are correctly configured
-- Wait for DNS propagation (up to 48 hours)
-- Check SSL certificate status
-
-### Graduation payment not verified
-
-- Ensure correct amount and token (USDC)
-- Verify transaction on correct chain
-- Allow time for confirmation
-
-### Theme not applying
-
-- Clear browser cache
-- Check CSS variable syntax
-- Verify theme object structure
+---
 
 ## Related Skills
 
-- **orderly-getting-started** - Account setup
+- **orderly-onboarding** - Account setup
 - **orderly-trading-orders** - Trading functionality
-- **orderly-ui-components** - UI components
