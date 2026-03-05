@@ -168,24 +168,38 @@ args = ["@orderly.network/mcp-server@latest"]
 
 Install Orderly skills to enhance your AI agent with procedural knowledge for building on Orderly.
 
-**Install all skills:**
+**Install all skills globally (recommended):**
 
 ```bash
-npx skills add @orderly.network/skills
+npx skills add OrderlyNetwork/skills --all --agent '*' -g
+```
+
+**Install all skills locally:**
+
+```bash
+npx skills add OrderlyNetwork/skills --all
 ```
 
 **Install specific skills:**
 
 ```bash
 # List available skills
-npx skills add @orderly.network/skills --list
+npx skills add OrderlyNetwork/skills --list
 
 # Install specific skill
-npx skills add @orderly.network/skills --skill orderly-trading-orders
+npx skills add OrderlyNetwork/skills --skill orderly-trading-orders
 
 # Install multiple skills
-npx skills add @orderly.network/skills --skill orderly-api-authentication --skill orderly-trading-orders
+npx skills add OrderlyNetwork/skills --skill orderly-api-authentication --skill orderly-trading-orders
+
+# Install for specific agent
+npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 ```
+
+**Global vs Local:**
+
+- **Global (`-g`)**: Available across all projects, installed to user directory
+- **Local**: Project-specific, creates `.skills/` in repo, can be committed to version control
 
 **Available Skills:**
 

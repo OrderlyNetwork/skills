@@ -4,26 +4,102 @@ AI Agent Skills for Orderly Network - Perpetual Futures Trading Infrastructure.
 
 ## Installation
 
-Install all skills with the `skills` CLI:
+Install Orderly skills to enhance your AI agent with procedural knowledge for building on Orderly.
+
+### Quick Install (All Skills)
+
+**Global** (available across all projects):
 
 ```bash
-npx skills add @orderly.network/skills
+npx skills add OrderlyNetwork/skills --all -g
+```
+
+**Local** (project-specific):
+
+```bash
+npx skills add OrderlyNetwork/skills --all
+```
+
+### Target Specific Agents
+
+Install for all agents:
+
+```bash
+npx skills add OrderlyNetwork/skills --all --agent '*' -g
+```
+
+Install for specific agents:
+
+```bash
+# Claude Code
+npx skills add OrderlyNetwork/skills --all --agent claude-code -g
+
+# Cursor
+npx skills add OrderlyNetwork/skills --all --agent cursor -g
+
+# OpenCode
+npx skills add OrderlyNetwork/skills --all --agent opencode -g
+
+# VS Code
+npx skills add OrderlyNetwork/skills --all --agent vscode -g
+
+# Codex
+npx skills add OrderlyNetwork/skills --all --agent codex -g
+```
+
+### Install Specific Skills
+
+List available skills:
+
+```bash
+npx skills add OrderlyNetwork/skills --list
 ```
 
 Install specific skills:
 
 ```bash
-# List available skills first
-npx skills add @orderly.network/skills --list
+npx skills add OrderlyNetwork/skills --skill orderly-trading-orders --skill orderly-api-authentication
+```
 
-# Install specific skill
-npx skills add @orderly.network/skills --skill orderly-trading-orders
+Install all skills in a category:
 
-# Install multiple skills
-npx skills add @orderly.network/skills --skill orderly-api-authentication --skill orderly-trading-orders
+```bash
+npx skills add OrderlyNetwork/skills --skill '*'
+```
 
-# Install all skills
-npx skills add @orderly.network/skills --skill '*'
+### Global vs Local Installation
+
+**Global (`-g` flag):**
+
+- Skills available across all your projects
+- Installed to user-level directory
+- Good for agents working across multiple repos
+- Use when: You work on multiple Orderly projects
+
+**Local (no flag):**
+
+- Skills specific to current project
+- Creates `.skills/` directory in repo
+- Can be committed to version control
+- Use when: Team consistency, project-specific setup
+
+### Recommended Setup for AI Agents
+
+**Complete Setup:**
+
+```bash
+# 1. Install MCP server for documentation access
+npx @orderly.network/mcp-server init --client <your-client>
+
+# 2. Install all skills globally for all agents
+npx skills add OrderlyNetwork/skills --all --agent '*' -g
+```
+
+**Minimal Setup:**
+
+```bash
+# Install only onboarding skill, let agent guide you to others
+npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
 ```
 
 ## Available Skills
