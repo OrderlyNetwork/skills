@@ -9,7 +9,7 @@
     "format": "prettier --write \"**/*.{ts,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,md,json}\"",
     "validate": "node --import tsx scripts/validate-skills.ts",
-    "prepare": "husky"
+    "prepublishOnly": "npm run validate"
   },
   "keywords": [
     "orderly",
@@ -22,12 +22,22 @@
   ],
   "author": "Orderly Network",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OrderlyNetwork/skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OrderlyNetwork/skills/issues"
+  },
+  "homepage": "https://github.com/OrderlyNetwork/skills#readme",
+  "files": [
+    "skills/",
+    "README.md"
+  ],
   "devDependencies": {
     "@types/node": "^24.0.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
@@ -36,14 +46,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "lint-staged": {
-    "*.ts": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
   }
 }
