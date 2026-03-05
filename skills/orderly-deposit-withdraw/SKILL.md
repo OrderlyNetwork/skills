@@ -294,12 +294,13 @@ GET /v1/withdraw_nonce
 ### Step 2: Create EIP-712 Signature (EVM)
 
 ```typescript
+// Use ON-CHAIN domain for withdrawals (see EIP-712 Domain Configuration in orderly-api-authentication)
 const domain = {
   name: 'Orderly',
   version: '1',
   chainId: 42161,
-  verifyingContract: '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203',
-  // verifyingContract: "0x1826B75e2ef249173FC735149AE4B8e9ea10abff"
+  verifyingContract: '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203', // Mainnet Ledger
+  // verifyingContract: '0x1826B75e2ef249173FC735149AE4B8e9ea10abff' // Testnet Ledger
 };
 
 const types = {
@@ -496,7 +497,7 @@ GET /v1/transfer_nonce
   }
 }
 
-// Step 2: Sign EIP-712 message with wallet
+// Step 2: Sign EIP-712 message with wallet (ON-CHAIN domain - see orderly-api-authentication)
 const receiverHex = receiverAddress.startsWith('0x')
   ? receiverAddress.slice(2)
   : receiverAddress;
@@ -506,7 +507,7 @@ const domain = {
   name: 'Orderly',
   version: '1',
   chainId: 42161,
-  verifyingContract: '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203'
+  verifyingContract: '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203' // Mainnet Ledger
 };
 
 const types = {

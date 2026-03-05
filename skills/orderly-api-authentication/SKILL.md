@@ -86,14 +86,40 @@ const { data } = await response.json();
 
 ### EIP-712 Domain Configuration
 
-All wallet signatures use this standard EIP-712 domain:
+Orderly uses **two different EIP-712 domains** depending on the operation:
+
+| Domain Type   | Use Case                                    | Mainnet                                      | Testnet                                      |
+| ------------- | ------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| **Off-chain** | Account registration, API key management    | `0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC` | `0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC` |
+| **On-chain**  | Withdrawals, internal transfers, settle PnL | `0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203` | `0x1826B75e2ef249173FC735149AE4B8e9ea10abff` |
+
+> **Important**: The on-chain `verifyingContract` is the **Ledger contract** on Orderly L2. This is a single contract for all chains (not per-chain). Vault contracts exist on each supported EVM chain for deposits, but the Ledger is the source of truth for on-chain operations.
+
+#### Off-Chain Domain (Registration, API Keys)
+
+Used for operations that don't directly interact with smart contracts:
 
 ```typescript
-const ORDERLY_EIP712_DOMAIN = {
+const OFFCHAIN_DOMAIN = {
   name: 'Orderly',
   version: '1',
-  chainId: 421614, // Arbitrum Sepolia testnet (use 42161 for mainnet)
+  chainId: 421614, // Connected chain ID (e.g., Arbitrum Sepolia)
   verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+};
+```
+
+#### On-Chain Domain (Withdrawals, Transfers)
+
+Used for operations that interact with the Ledger contract on Orderly L2:
+
+```typescript
+const ONCHAIN_DOMAIN = {
+  name: 'Orderly',
+  version: '1',
+  chainId: 42161, // Connected chain ID
+  verifyingContract: isTestnet
+    ? '0x1826B75e2ef249173FC735149AE4B8e9ea10abff'
+    : '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203',
 };
 ```
 
@@ -162,14 +188,14 @@ const registerMessage = {
   registrationNonce: nonce,
 };
 
-// Sign with wallet (e.g., MetaMask)
+// Sign with wallet (e.g., MetaMask) - Use OFFCHAIN_DOMAIN for registration
 const signature = await window.ethereum.request({
   method: 'eth_signTypedData_v4',
   params: [
     walletAddress,
     {
       types: REGISTRATION_TYPES,
-      domain: ORDERLY_EIP712_DOMAIN,
+      domain: OFFCHAIN_DOMAIN,
       message: registerMessage,
       primaryType: 'Registration',
     },
@@ -268,13 +294,14 @@ const addKeyMessage = {
   expiration: Date.now() + 31536000000, // 1 year from now
 };
 
+// Use OFFCHAIN_DOMAIN for API key management
 const addKeySignature = await window.ethereum.request({
   method: 'eth_signTypedData_v4',
   params: [
     walletAddress,
     {
       types: ADD_KEY_TYPES,
-      domain: ORDERLY_EIP712_DOMAIN,
+      domain: OFFCHAIN_DOMAIN,
       message: addKeyMessage,
       primaryType: 'AddOrderlyKey',
     },
