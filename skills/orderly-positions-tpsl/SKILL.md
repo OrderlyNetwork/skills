@@ -34,7 +34,7 @@ interface Position {
   imr: number; // Initial margin ratio
   notional: number; // Position value
   leverage: number; // Current leverage
-  liq_price: number; // Liquidation price
+  est_liq_price: number; // Estimated liquidation price
   cost_position: number; // Position cost
   settle_price: number; // Settlement price
   unsettled_pnl: number; // Unsettled PnL
@@ -66,7 +66,7 @@ GET /v1/position/{symbol}
         "imr": 0.02,
         "notional": 1550,
         "leverage": 10,
-        "liq_price": 2700
+        "est_liq_price": 2700
       }
     ]
   }
