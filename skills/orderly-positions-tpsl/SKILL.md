@@ -35,8 +35,9 @@ interface Position {
   notional: number; // Position value
   leverage: number; // Current leverage
   liq_price: number; // Liquidation price
-  bank_cost: number; // Position cost
-  settle_i_owe: number; // Unsettled debt
+  cost_position: number; // Position cost
+  settle_price: number; // Settlement price
+  unsettled_pnl: number; // Unsettled PnL
 }
 ```
 
@@ -305,56 +306,74 @@ function TPSSettings({ position }: { position: Position }) {
 ### REST API: Algo Orders for TP/SL
 
 ```typescript
-// Place TP/SL for existing position
+// Place TP/SL order (creates both TP and SL as child orders)
 POST /v1/algo/order
 Body: {
   symbol: 'PERP_ETH_USDC',
-  type: 'CLOSE_POSITION',
-  algoType: 'TAKE_PROFIT',  // or 'STOP_LOSS'
-  trigger_price: '3500',
-  quantity: '0.5',  // Position size to close
-  price: '3500',    // Limit price (optional, default = trigger_price)
+  algo_type: 'TP_SL',
+  quantity: 5.5,
+  trigger_price_type: 'MARK_PRICE',
+  child_orders: [
+    {
+      symbol: 'PERP_ETH_USDC',
+      algo_type: 'TAKE_PROFIT',
+      side: 'SELL',
+      type: 'MARKET',
+      trigger_price: 3500,
+      reduce_only: true
+    },
+    {
+      symbol: 'PERP_ETH_USDC',
+      algo_type: 'STOP_LOSS',
+      side: 'SELL',
+      type: 'MARKET',
+      trigger_price: 2800,
+      reduce_only: true
+    }
+  ]
 }
 
-// Positional TP/SL (attached to position)
+// Positional TP/SL (attached to entire position)
 POST /v1/algo/order
 Body: {
   symbol: 'PERP_ETH_USDC',
-  type: 'CLOSE_POSITION',
-  childOrder: [
+  algo_type: 'POSITIONAL_TP_SL',
+  trigger_price_type: 'MARK_PRICE',
+  child_orders: [
     {
+      symbol: 'PERP_ETH_USDC',
+      algo_type: 'TAKE_PROFIT',
+      side: 'SELL',
       type: 'CLOSE_POSITION',
-      algoType: 'TAKE_PROFIT',
-      trigger_price: '3500',
-      quantity: '0.5',
+      trigger_price: 3500,
+      reduce_only: true
     },
     {
+      symbol: 'PERP_ETH_USDC',
+      algo_type: 'STOP_LOSS',
+      side: 'SELL',
       type: 'CLOSE_POSITION',
-      algoType: 'STOP_LOSS',
-      trigger_price: '2800',
-      quantity: '0.5',
-    },
-  ],
+      trigger_price: 2800,
+      reduce_only: true
+    }
+  ]
 }
 ```
 
-### Trailing Stop
+### STOP Orders (Stop Market)
 
 ```typescript
 POST /v1/algo/order
 Body: {
   symbol: 'PERP_ETH_USDC',
-  type: 'MARKET',
-  algoType: 'TRAILING_STOP',
-  trigger_price: '3000',    // Initial trigger
-  callbackRate: '5',        // 5% trailing distance
-  quantity: '0.5',
+  algo_type: 'STOP',
+  quantity: 5.5,
+  side: 'BUY',
+  type: 'LIMIT',
+  trigger_price_type: 'MARK_PRICE',
+  trigger_price: 4.203,
+  price: 3.5  // Limit price for the triggered order
 }
-
-// The stop price will trail the mark price:
-// If price goes to 3200, stop moves to 3040 (3200 * 0.95)
-// If price goes to 3500, stop moves to 3325 (3500 * 0.95)
-// If price drops to stop, position closes
 ```
 
 ### Cancel TP/SL Orders
@@ -411,17 +430,19 @@ liqPrice = averageOpenPrice * (1 + mmr + 1 / leverage);
 ## Risk Metrics
 
 ```typescript
-interface RiskMetrics {
-  total_collateral: number; // Total account value
-  free_collateral: number; // Available for new positions
-  used_collateral: number; // Locked in positions
-  margin_ratio: number; // Health indicator (higher = safer)
-  total_unrealized_pnl: number; // Sum of all position PnL
-  total_notional: number; // Total position value
+// Available fields from GET /v1/positions response:
+{
+  "current_margin_ratio_with_orders": 1.2385,
+  "free_collateral": 450315.09,
+  "initial_margin_ratio": 0.1,
+  "initial_margin_ratio_with_orders": 0.1,
+  "maintenance_margin_ratio": 0.05,
+  "maintenance_margin_ratio_with_orders": 0.05,
+  "margin_ratio": 1.2385,
+  "open_margin_ratio": 1.2102,
+  "total_collateral_value": 489865.71,
+  "total_pnl_24_h": 0
 }
-
-// Fetch via
-GET / v1 / client / holding;
 ```
 
 ## Margin vs Collateral: Understanding the Hierarchy

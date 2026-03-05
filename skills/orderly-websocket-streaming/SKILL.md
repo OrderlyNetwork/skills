@@ -222,13 +222,16 @@ ws.onmessage = (event) => {
 
 ### Private Topics
 
-| Topic             | Description          |
-| ----------------- | -------------------- |
-| `executionreport` | Order status updates |
-| `position`        | Position changes     |
-| `balance`         | Balance updates      |
-| `liquidation`     | Liquidation warnings |
-| `fundingfee`      | Funding fee updates  |
+| Topic                 | Description            |
+| --------------------- | ---------------------- |
+| `executionreport`     | Order status updates   |
+| `position`            | Position changes       |
+| `balance`             | Balance updates        |
+| `liquidationsaccount` | Liquidation warnings   |
+| `wallet`              | Wallet/deposit updates |
+| `account`             | Account updates        |
+| `settle`              | Settlement updates     |
+| `notifications`       | General notifications  |
 
 ### Execution Report Stream
 

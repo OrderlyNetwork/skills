@@ -47,8 +47,8 @@ interface OrderRequest {
   symbol: string; // e.g., "PERP_ETH_USDC"
   side: 'BUY' | 'SELL';
   order_type: 'LIMIT' | 'MARKET' | 'IOC' | 'FOK' | 'POST_ONLY' | 'ASK' | 'BID';
-  order_price?: string; // Required for LIMIT orders
-  order_quantity: string; // Base asset quantity
+  order_price?: number; // Required for LIMIT orders
+  order_quantity: number; // Base asset quantity
   visible_quantity?: number; // For hidden orders (0 = hidden)
   client_order_id?: string; // Your custom ID
   trigger_price?: string; // For stop orders
@@ -91,8 +91,8 @@ const order = await placeOrder({
   symbol: 'PERP_ETH_USDC',
   side: 'BUY',
   order_type: 'LIMIT',
-  order_price: '3000',
-  order_quantity: '0.1',
+  order_price: 3000,
+  order_quantity: 0.1,
 });
 ```
 
@@ -283,7 +283,12 @@ Place or cancel multiple orders in a single request:
 ```typescript
 // Batch create (max 10 orders)
 POST /v1/batch-order
-Body: [order1, order2, ...]  // Array of order objects
+Body: {
+  orders: [
+    { symbol: 'PERP_ETH_USDC', side: 'BUY', order_type: 'LIMIT', order_price: 3000, order_quantity: 0.1 },
+    { symbol: 'PERP_BTC_USDC', side: 'BUY', order_type: 'LIMIT', order_price: 50000, order_quantity: 0.01 }
+  ]
+}
 
 // Batch cancel (max 10 orders)
 DELETE /v1/batch-order?order_ids={id1},{id2},...
@@ -292,10 +297,12 @@ DELETE /v1/batch-order?order_ids={id1},{id2},...
 const batchResponse = await fetch('https://api.orderly.org/v1/batch-order', {
   method: 'POST',
   headers: { /* auth headers */ },
-  body: JSON.stringify([
-    { symbol: 'PERP_ETH_USDC', side: 'BUY', order_type: 'LIMIT', order_price: '3000', order_quantity: '0.1' },
-    { symbol: 'PERP_BTC_USDC', side: 'BUY', order_type: 'LIMIT', order_price: '50000', order_quantity: '0.01' },
-  ]),
+  body: JSON.stringify({
+    orders: [
+      { symbol: 'PERP_ETH_USDC', side: 'BUY', order_type: 'LIMIT', order_price: 3000, order_quantity: 0.1 },
+      { symbol: 'PERP_BTC_USDC', side: 'BUY', order_type: 'LIMIT', order_price: 50000, order_quantity: 0.01 }
+    ]
+  }),
 });
 ```
 

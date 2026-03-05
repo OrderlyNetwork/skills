@@ -306,24 +306,22 @@ const types = {
   Withdraw: [
     { name: 'brokerId', type: 'string' },
     { name: 'chainId', type: 'uint256' },
-    { name: 'withdrawNonce', type: 'uint64' },
-    { name: 'timestamp', type: 'uint64' },
+    { name: 'receiver', type: 'address' },
     { name: 'token', type: 'string' },
     { name: 'amount', type: 'uint256' },
-    { name: 'receiver', type: 'address' },
-    { name: 'fee', type: 'uint256' },
+    { name: 'withdrawNonce', type: 'uint64' },
+    { name: 'timestamp', type: 'uint64' },
   ],
 };
 
 const withdrawMessage = {
   brokerId: 'woofi_dex',
   chainId: 42161,
-  withdrawNonce: withdrawNonceFromStep1,
-  timestamp: Date.now(),
+  receiver: '0xTargetAddress',
   token: 'USDC',
   amount: '10000000', // 10 USDC (6 decimals)
-  receiver: '0xTargetAddress',
-  fee: '0',
+  withdrawNonce: withdrawNonceFromStep1,
+  timestamp: Date.now(),
 };
 
 // Sign with wallet
@@ -399,9 +397,11 @@ Body: {
   "message": {
     ...withdrawMessage,
     "chainId": 10,
+    "allowCrossChainWithdraw": true
   },
   "signature": signature,
-  "allow_cross_chain_withdrawal": true
+  "userAddress": walletAddress,
+  "verifyingContract": "0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203"
 }
 // Requires Ed25519 API authentication
 
@@ -415,7 +415,7 @@ Body: {
 }
 ```
 
-**Error Code 22**: If `allow_cross_chain_withdrawal` is `false` when a cross-chain withdrawal is needed, the API returns:
+**Error Code 22**: If `allowCrossChainWithdraw` is `false` when a cross-chain withdrawal is needed, the API returns:
 
 ```json
 {
