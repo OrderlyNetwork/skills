@@ -121,7 +121,13 @@ npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
 |                     | `orderly-sdk-trading-workflows`  | End-to-end trading flows (connect → deposit → trade → withdraw)                                                     |
 | **Platform**        | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana chains                                                                        |
 |                     | `orderly-sdk-debugging`          | Debug and troubleshoot SDK errors                                                                                   |
+| **Orderly One**     | `orderly-one-general`            | Overview of Orderly One white-label DEX platform - launch paths, authentication, API base URLs                      |
+|                     | `orderly-one-create-dex`         | Create, update, delete, and deploy a DEX through the Orderly One REST API                                           |
 |                     | `orderly-one-dex`                | Create and manage custom DEX with Orderly One API                                                                   |
+|                     | `orderly-one-graduation`         | Graduate a demo DEX into a fee-earning DEX with broker ID creation and payment                                      |
+|                     | `orderly-one-theming`            | Generate and customize DEX themes using AI or manual CSS via the Orderly One API                                    |
+|                     | `orderly-one-template`           | Customize the forked DEX template repository (React + Vite + Orderly SDK)                                           |
+|                     | `orderly-one-leaderboard`        | Read-only endpoints for DEX rankings and platform statistics                                                        |
 
 ## Skill Details
 
@@ -147,7 +153,7 @@ npx @orderly.network/mcp-server init --client <claude|cursor|vscode|codex|openco
 
 - **Building a DEX**: orderly-sdk-install-dependency, orderly-sdk-dex-architecture, orderly-sdk-wallet-connection, orderly-sdk-trading-workflows
 - **API/Bot Development**: orderly-api-authentication, orderly-trading-orders
-- **Custom DEX (Orderly One)**: orderly-one-dex
+- **Custom DEX (Orderly One)**: orderly-one-general, orderly-one-create-dex, orderly-one-graduation, orderly-one-theming, orderly-one-template
 
 ### orderly-api-authentication
 
@@ -313,6 +319,60 @@ Custom DEX management:
 - Graduation (demo to full DEX)
 - Leaderboard integration
 
+### orderly-one-general
+
+Orderly One platform overview:
+
+- What Orderly One is and how it works
+- Two launch paths (low-code vs. custom SDK/API)
+- Authentication and API base URLs
+- Fee structure and graduation overview
+
+### orderly-one-create-dex
+
+DEX creation via REST API:
+
+- Create, update, delete DEX via API
+- Multipart/form-data requests with file uploads
+- Integration type, branding, and blockchain configuration
+- Deployment management
+
+### orderly-one-graduation
+
+Graduation process:
+
+- Convert demo DEX to fee-earning DEX
+- Broker ID creation
+- Payment in USDC, USDT, or ORDER tokens
+- Admin wallet registration
+
+### orderly-one-theming
+
+Theme customization:
+
+- AI-driven theme generation from text descriptions
+- Manual CSS editing via API
+- Multiple theme variants
+- Live preview via web portal
+
+### orderly-one-template
+
+Template repository customization:
+
+- Fork and customize the DEX template repo
+- React + Vite + Orderly SDK stack
+- GitHub Pages deployment via GitHub Actions
+- Direct frontend code modifications
+
+### orderly-one-leaderboard
+
+DEX rankings and statistics:
+
+- Public read-only endpoints (no auth required)
+- Sorting by volume, PnL, or fees
+- Time period filtering
+- Platform-wide statistics
+
 ## Development
 
 ### Prerequisites
@@ -355,7 +415,7 @@ orderly-skills/
 │   │   └── SKILL.md
 │   ├── orderly-api-authentication/
 │   │   └── SKILL.md
-│   └── ... (14 more skills)
+│   └── ... (20 more skills)
 ├── scripts/
 │   └── validate-skills.ts
 ├── package.json
