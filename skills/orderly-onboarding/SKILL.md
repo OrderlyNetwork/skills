@@ -225,6 +225,17 @@ npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 
 Build custom trading interfaces using Orderly's React SDK v2.
 
+### Fastest Way to Get Started
+
+Fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** to get a working DEX in minutes.
+
+1. Fork the repository to your GitHub account
+2. Configure `.env` with your broker ID and name
+3. Customize your theme with **orderly-sdk-theming** (CSS variables and color tokens)
+4. Deploy to your preferred hosting platform
+
+This template uses the **components SDK** — pre-built page components that work out of the box with less customization. For full control over individual components, use the MCP server and load SDK skills (especially **orderly-sdk-react-hooks** and **orderly-sdk-ui-components**) for hooks-level development.
+
 **Core SDK Packages:**
 
 ```bash
@@ -372,11 +383,11 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ## Key Links
 
-| Resource         | URL                                                       |
-| ---------------- | --------------------------------------------------------- |
-| Documentation    | https://orderly.network/docs                              |
-| SDK Repository   | https://github.com/orderlynetwork/js-sdk                  |
-| Example DEX      | https://github.com/orderlynetwork/example-dex             |
+| Resource              | URL                                                                    | Notes                                          |
+| --------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| Documentation         | https://orderly.network/docs                                           |                                                |
+| SDK Repository        | https://github.com/orderlynetwork/js-sdk                               |                                                |
+| DEX Template  | https://github.com/OrderlyNetwork/dex-template       | Fastest start, uses components SDK             |
 | MCP Server (npm) | https://www.npmjs.com/package/@orderly.network/mcp-server |
 | CLI (npm)        | https://www.npmjs.com/package/@orderly.network/cli        |
 | Skills (npm)     | https://www.npmjs.com/package/@orderly.network/skills     |
@@ -390,10 +401,11 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 **If you're building a DEX:**
 
-1. Load **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture**
+1. Fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** for the fastest start
 2. Install MCP server: `npx @orderly.network/mcp-server init`
-3. Set up wallet connection with **orderly-sdk-wallet-connection**
-4. Build your UI with **orderly-ui-components**
+3. Configure your broker settings in `.env` and customize your theme
+4. For more control, load **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture** to build from scratch
+5. Set up wallet connection with **orderly-sdk-wallet-connection**
 
 **If you're building trading bots or API integrations:**
 
@@ -429,7 +441,9 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ### "Where do I start building?"
 
-Install the MCP server first: `npx @orderly.network/mcp-server init --client <your-client>`
+**For a quick DEX**: Fork the [DEX Template](https://github.com/OrderlyNetwork/dex-template), configure `.env`, and deploy. Uses pre-built components — fastest path.
+
+**For more control**: Install the MCP server first: `npx @orderly.network/mcp-server init --client <your-client>`, then load SDK skills like **orderly-sdk-react-hooks** and **orderly-sdk-dex-architecture** to build with the hooks SDK.
 
 Then ask: "How do I connect to Orderly Network?" or load **orderly-sdk-wallet-connection**.
 
