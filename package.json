@@ -1,6 +1,6 @@
 {
   "name": "@orderly.network/skills",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "AI Agent Skills for Orderly Network - Perpetual Futures Trading Infrastructure",
   "type": "module",
   "scripts": {
