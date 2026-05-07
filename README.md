@@ -119,6 +119,7 @@ npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
 |                     | `orderly-sdk-page-components`    | Pre-built page components (TradingPage, Portfolio, Markets)                                                         |
 |                     | `orderly-sdk-theming`            | CSS variable theming and customization                                                                              |
 |                     | `orderly-sdk-trading-workflows`  | End-to-end trading flows (connect → deposit → trade → withdraw)                                                     |
+|                     | `orderly-sdk-plugins`            | Create, integrate, and debug SDK plugins, interceptors, and layout customization                                    |
 | **Platform**        | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana chains                                                                        |
 |                     | `orderly-sdk-debugging`          | Debug and troubleshoot SDK errors                                                                                   |
 |                     | `orderly-one-dex`                | Create and manage custom DEX with Orderly One API                                                                   |
@@ -146,6 +147,7 @@ npx @orderly.network/mcp-server init --client <claude|cursor|vscode|codex|openco
 **Load Recommended Skills:**
 
 - **Building a DEX**: orderly-sdk-install-dependency, orderly-sdk-dex-architecture, orderly-sdk-wallet-connection, orderly-sdk-trading-workflows
+- **Extending SDK UI**: orderly-sdk-plugins, orderly-ui-components, orderly-sdk-react-hooks
 - **API/Bot Development**: orderly-api-authentication, orderly-trading-orders
 - **Custom DEX (Orderly One)**: orderly-one-dex
 
@@ -226,12 +228,21 @@ Complete hook reference:
 
 Pre-built components:
 
-- OrderEntry
-- Positions table
-- Orderbook
-- WalletConnect
-- Charts (TradingView, Lightweight)
+- Modular SDK packages replacing deprecated `@orderly.network/react`
+- OrderEntryWidget, PositionsWidget, OrdersWidget
+- WalletConnectorWidget and AuthGuard
+- OrderBook, LastTrades, TradingviewWidget
 - Tables, Sheets, Modals
+
+### orderly-sdk-plugins
+
+SDK plugin and layout customization:
+
+- Widget plugins using supported interceptor target paths
+- Page plugins mounted as normal app routes
+- Layout plugins for `Trading.Layout.Desktop`
+- Split/grid layout package integration
+- Plugin target lookup and failure recovery
 
 ### orderly-sdk-install-dependency
 

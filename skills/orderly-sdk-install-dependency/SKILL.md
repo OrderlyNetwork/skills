@@ -22,8 +22,6 @@ Use this skill to add Orderly SDK packages to your project. The SDK is modularâ€
 
 ## Quick Start (Full DEX)
 
-> **IMPORTANT**: A functional DEX requires BOTH the Orderly packages AND the wallet connector dependencies. The `@orderly.network/wallet-connector` package needs `@web3-onboard/*` packages for EVM wallets and `@solana/wallet-adapter-*` packages for Solana wallets.
->
 > **Note**: `@orderly.network/hooks` is included as a transitive dependency via `@orderly.network/react-app` â€” you do not need to install it separately for most DEX projects. Only install it directly if you are using the hooks-only integration path without `react-app`.
 
 ```bash
@@ -35,10 +33,10 @@ npm install @orderly.network/react-app \
             @orderly.network/wallet-connector \
             @orderly.network/i18n
 
-# REQUIRED: EVM wallet support (MetaMask, WalletConnect, etc.)
+# Optional: EVM wallet support for custom wallet configuration
 npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
 
-# REQUIRED: Solana wallet support (Phantom, Solflare, etc.)
+# Optional: Solana wallet support for custom wallet configuration
 npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 ```
 
@@ -72,7 +70,6 @@ Complete, pre-built page components with full functionality.
 | `@orderly.network/affiliate`           | Referral/affiliate program page                              | `AffiliatePage`                                                                                                           |
 | `@orderly.network/trading-leaderboard` | Trading competition leaderboard                              | `LeaderboardPage`                                                                                                         |
 | `@orderly.network/trading-rewards`     | Trading rewards program page                                 | `TradingRewardsPage`                                                                                                      |
-| `@orderly.network/trading-points`      | Trading points/merits program page                           | `TradingPointsPage`                                                                                                       |
 
 ```bash
 npm install @orderly.network/trading @orderly.network/portfolio @orderly.network/markets
@@ -130,9 +127,24 @@ Individual UI modules for custom integrations. These are dependencies of `@order
 | `@orderly.network/ui-connector`      | Wallet connect button & modal                 | `ConnectWalletButton`                                                                                      |
 | `@orderly.network/ui-tradingview`    | TradingView chart wrapper                     | `TradingViewChart`                                                                                         |
 | `@orderly.network/ui-notification`   | Notification center                           | `NotificationWidget`                                                                                       |
+| `@orderly.network/layout-core`       | Trading layout strategy protocol              | `LayoutHost`, `LayoutStrategy`, `TRADING_PANEL_IDS`, `getTradingPanelIds`                                    |
+| `@orderly.network/layout-split`      | Split-pane trading layout plugin              | `registerLayoutSplitPlugin`, `getDefaultSplitPresets`                                                       |
+| `@orderly.network/layout-grid`       | Grid trading layout plugin                     | `registerLayoutGridPlugin`                                                                                  |
+| `@orderly.network/plugin-core`       | SDK plugin and interceptor helpers             | `createInterceptor`, plugin/interceptor types                                                               |
 
 ```bash
 npm install @orderly.network/ui-scaffold @orderly.network/ui-order-entry
+```
+
+### Plugin and Layout Customization
+
+Install these when building extension plugins, injected widgets, or custom trading layouts:
+
+```bash
+npm install @orderly.network/plugin-core \
+            @orderly.network/layout-core \
+            @orderly.network/layout-split \
+            @orderly.network/layout-grid
 ```
 
 ## Low-Level Packages
@@ -282,10 +294,10 @@ All `@orderly.network/*` packages should use the same version to ensure compatib
 ```json
 {
   "dependencies": {
-    "@orderly.network/react-app": "^2.8.0",
-    "@orderly.network/trading": "^2.8.0",
-    "@orderly.network/hooks": "^2.8.0",
-    "@orderly.network/ui": "^2.8.0"
+    "@orderly.network/react-app": "^3.0.2",
+    "@orderly.network/trading": "^3.0.2",
+    "@orderly.network/hooks": "^3.0.2",
+    "@orderly.network/ui": "^3.0.2"
   }
 }
 ```

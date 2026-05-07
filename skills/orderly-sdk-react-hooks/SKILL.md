@@ -31,7 +31,7 @@ yarn add @orderly.network/hooks @orderly.network/types
 ## Setup
 
 ```typescript
-import { OrderlyAppProvider } from '@orderly.network/react';
+import { OrderlyAppProvider } from '@orderly.network/react-app';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();

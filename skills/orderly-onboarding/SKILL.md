@@ -145,6 +145,7 @@ npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 |                    | `orderly-sdk-page-components`    | Pre-built page components                           |
 |                    | `orderly-sdk-theming`            | CSS variable theming and customization              |
 |                    | `orderly-sdk-trading-workflows`  | End-to-end trading flows                            |
+|                    | `orderly-sdk-plugins`            | Plugin, interceptor, and layout customization       |
 | **Platform**       | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana               |
 |                    | `orderly-sdk-debugging`          | Debug/troubleshoot SDK errors                       |
 |                    | `orderly-one-dex`                | Create/manage custom DEX with Orderly One API       |
@@ -175,10 +176,10 @@ npm install @orderly.network/react-app \
             @orderly.network/wallet-connector \
             @orderly.network/i18n
 
-# Required: EVM wallet support
+# Optional: EVM wallet support for custom wallet configuration
 npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
 
-# Required: Solana wallet support
+# Optional: Solana wallet support for custom wallet configuration
 npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 ```
 
@@ -207,6 +208,7 @@ Launch your own branded perpetuals DEX without building from scratch. Orderly On
 - **orderly-sdk-wallet-connection** - Wallet integration
 - **orderly-sdk-trading-workflows** - Complete trading flows
 - **orderly-sdk-theming** - Customization guide
+- **orderly-sdk-plugins** - Extend trading UI with plugins, interceptors, and custom layouts
 
 ## For API / Bot Developers
 
