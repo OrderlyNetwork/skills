@@ -141,7 +141,8 @@ function ConnectionIndicator() {
 ### Check Account State
 
 ```tsx
-import { useAccount, AccountStatusEnum } from '@orderly.network/hooks';
+import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 function AccountDebugger() {
   const { state, account } = useAccount();
@@ -164,7 +165,9 @@ function AccountDebugger() {
       return <p>Wallet connected, not signed in</p>;
     case AccountStatusEnum.NotSignedIn:
       return <p>Need to sign message to create Orderly key</p>;
-    case AccountStatusEnum.SignedIn:
+    case AccountStatusEnum.DisabledTrading:
+      return <p>Account created, trading key missing or inactive</p>;
+    case AccountStatusEnum.EnableTrading:
       return <p>Fully authenticated</p>;
   }
 }
@@ -356,7 +359,7 @@ class OrderlyErrorBoundary extends React.Component {
 
 ### Order Not Submitting
 
-- [ ] Account status is `SignedIn`?
+- [ ] Account status is `EnableTrading`?
 - [ ] Symbol format correct? (e.g., `PERP_ETH_USDC`)
 - [ ] Sufficient balance?
 - [ ] Order quantity above minimum?

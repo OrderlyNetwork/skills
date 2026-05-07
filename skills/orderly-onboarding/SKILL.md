@@ -156,7 +156,7 @@ args = ["@orderly.network/mcp-server@latest"]
 | Tool                       | Description                                      |
 | -------------------------- | ------------------------------------------------ |
 | `search_orderly_docs`      | Search Orderly documentation for specific topics |
-| `get_sdk_pattern`          | Get code examples for SDK v2 hooks and patterns  |
+| `get_sdk_pattern`          | Get code examples for SDK hooks and patterns     |
 | `get_contract_addresses`   | Lookup smart contract addresses for any chain    |
 | `explain_workflow`         | Step-by-step guides for common tasks             |
 | `get_api_info`             | REST API and WebSocket endpoint documentation    |
@@ -203,27 +203,28 @@ npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 
 **Available Skills:**
 
-| Category           | Skill                            | Description                                         |
-| ------------------ | -------------------------------- | --------------------------------------------------- |
-| **API / Protocol** | `orderly-api-authentication`     | Two-layer auth: EIP-712 (EVM) + Ed25519 (Solana)    |
-|                    | `orderly-trading-orders`         | Place, manage, cancel orders via REST API or SDK    |
-|                    | `orderly-positions-tpsl`         | Monitor positions, TP/SL, leverage, PnL             |
-|                    | `orderly-websocket-streaming`    | Real-time WebSocket for orderbook and executions    |
-|                    | `orderly-deposit-withdraw`       | Token deposits, withdrawals, cross-chain operations |
-| **SDK / React**    | `orderly-sdk-react-hooks`        | Reference for all React SDK hooks                   |
-|                    | `orderly-ui-components`          | Pre-built React UI components                       |
-|                    | `orderly-sdk-install-dependency` | Install Orderly SDK packages                        |
-|                    | `orderly-sdk-dex-architecture`   | Complete DEX project structure and setup            |
-|                    | `orderly-sdk-page-components`    | Pre-built page components                           |
-|                    | `orderly-sdk-theming`            | CSS variable theming and customization              |
-|                    | `orderly-sdk-trading-workflows`  | End-to-end trading flows                            |
-| **Platform**       | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana               |
-|                    | `orderly-sdk-debugging`          | Debug/troubleshoot SDK errors                       |
-|                    | `orderly-one-dex`                | Create/manage custom DEX with Orderly One API       |
+| Category           | Skill                            | Description                                          |
+| ------------------ | -------------------------------- | ---------------------------------------------------- |
+| **API / Protocol** | `orderly-api-authentication`     | Two-layer auth: EIP-712 (EVM) + Ed25519 (Solana)     |
+|                    | `orderly-trading-orders`         | Place, manage, cancel orders via REST API or SDK     |
+|                    | `orderly-positions-tpsl`         | Monitor positions, TP/SL, leverage, PnL              |
+|                    | `orderly-websocket-streaming`    | Real-time WebSocket for orderbook and executions     |
+|                    | `orderly-deposit-withdraw`       | Token deposits, withdrawals, cross-chain operations  |
+| **SDK / React**    | `orderly-sdk-react-hooks`        | Reference for all React SDK hooks                    |
+|                    | `orderly-ui-components`          | Pre-built React UI components                        |
+|                    | `orderly-sdk-install-dependency` | Install Orderly SDK packages                         |
+|                    | `orderly-sdk-dex-architecture`   | Complete DEX project structure and setup             |
+|                    | `orderly-sdk-page-components`    | Pre-built page components                            |
+|                    | `orderly-sdk-theming`            | CSS variable theming and customization               |
+|                    | `orderly-sdk-trading-workflows`  | End-to-end trading flows                             |
+|                    | `orderly-sdk-plugins`            | SDK v3 plugins, interceptors, and Module Marketplace |
+| **Platform**       | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana                |
+|                    | `orderly-sdk-debugging`          | Debug/troubleshoot SDK errors                        |
+|                    | `orderly-one-dex`                | Create/manage custom DEX with Orderly One API        |
 
 ## For Builders (SDK & DEX Development)
 
-Build custom trading interfaces using Orderly's React SDK v2.
+Build custom trading interfaces using Orderly's React SDK v3.
 
 **Core SDK Packages:**
 
@@ -380,7 +381,7 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 | MCP Server (npm) | https://www.npmjs.com/package/@orderly.network/mcp-server |
 | CLI (npm)        | https://www.npmjs.com/package/@orderly.network/cli        |
 | Skills (npm)     | https://www.npmjs.com/package/@orderly.network/skills     |
-| Skills.sh        | https://skills.sh                                          |
+| Skills.sh        | https://skills.sh                                         |
 | DEX Dashboard    | https://dex.orderly.network                               |
 | Orderly App      | https://app.orderly.network                               |
 | Discord          | https://discord.gg/OrderlyNetwork                         |

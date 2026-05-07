@@ -256,15 +256,18 @@ await setChain({ chainId: '0x2105' });
 After wallet connection, users need to complete Orderly account setup:
 
 ```
-NotConnected (0) → Connected (1) → NotSignedIn (2) → SignedIn (3)
-                                              ↓
-                                        EnableTrading (5)
+NotConnected (0) -> Connected (1) -> NotSignedIn (2) -> SignedIn (3)
+                                                        ↓
+                                              DisabledTrading (4)
+                                                        ↓
+                                               EnableTrading (5)
 ```
 
 ### Using useAccount Hook
 
 ```tsx
-import { useAccount, AccountStatusEnum } from '@orderly.network/hooks';
+import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 function AccountStatus() {
   const { account, state, createOrderlyKey, createAccount, disconnect } = useAccount();
@@ -279,7 +282,10 @@ function AccountStatus() {
     case AccountStatusEnum.NotSignedIn:
       return <button onClick={() => createOrderlyKey()}>Enable Trading</button>;
 
-    case AccountStatusEnum.SignedIn:
+    case AccountStatusEnum.DisabledTrading:
+      return <button onClick={() => createOrderlyKey()}>Enable Trading</button>;
+
+    case AccountStatusEnum.EnableTrading:
       return <TradingInterface />;
   }
 }

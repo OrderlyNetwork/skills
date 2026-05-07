@@ -50,7 +50,8 @@ This skill covers end-to-end trading workflows:
 ### Check Account State
 
 ```tsx
-import { useAccount, AccountStatusEnum } from '@orderly.network/hooks';
+import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 function TradingGuard({ children }) {
   const { state, createAccount, createOrderlyKey } = useAccount();
@@ -75,7 +76,15 @@ function TradingGuard({ children }) {
         </div>
       );
 
-    case AccountStatusEnum.SignedIn:
+    case AccountStatusEnum.DisabledTrading:
+      return (
+        <div>
+          <p>Enable trading by creating your trading key</p>
+          <Button onClick={() => createOrderlyKey()}>Enable Trading</Button>
+        </div>
+      );
+
+    case AccountStatusEnum.EnableTrading:
       return children;
   }
 }
@@ -136,6 +145,12 @@ function DepositForm() {
   );
 }
 ```
+
+### Gasless Deposit by Transfer
+
+For eligible EVM regular accounts, you can show an exclusive receiver address instead of sending an approval/deposit transaction. Call `GET /v1/client/asset/receiver_address` with `chain_id` and `token`, show the deterministic `receiver_address`, then poll `GET /v1/client/asset/receiver_events` about every 10 seconds until `COMPLETED`.
+
+Use `GET /v1/public/token` and check `chain_details[].exclusive_deposit_supported` before offering this flow. Transfers below `minimum_deposit`, unsupported tokens, or unsupported chains are not recoverable. This flow is not available for Solana accounts, sub-accounts, or Strategy Providers.
 
 ### Using DepositForm Component
 
@@ -593,7 +608,7 @@ function OrderForm() {
 
 ```tsx
 const { state } = useAccount();
-if (state.status !== AccountStatusEnum.SignedIn) {
+if (state.status !== AccountStatusEnum.EnableTrading) {
   return <AuthGuard>{children}</AuthGuard>;
 }
 ```

@@ -5,7 +5,7 @@ description: Build trading interfaces using pre-built React components - OrderEn
 
 # Orderly Network: UI Components
 
-This skill covers building trading interfaces using Orderly's pre-built React components from `@orderly.network/react`.
+This skill covers building trading interfaces using Orderly's pre-built React app, page, and UI packages.
 
 ## When to Use
 
@@ -16,16 +16,16 @@ This skill covers building trading interfaces using Orderly's pre-built React co
 ## Prerequisites
 
 - React 18+
-- `@orderly.network/react` installed
+- `@orderly.network/react-app` plus needed page/UI packages installed
 - Tailwind CSS (recommended for styling)
 
 ## Installation
 
 ```bash
-npm install @orderly.network/react @orderly.network/hooks @orderly.network/types
+npm install @orderly.network/react-app @orderly.network/trading @orderly.network/portfolio @orderly.network/markets @orderly.network/ui
 
 # Or with yarn
-yarn add @orderly.network/react @orderly.network/hooks @orderly.network/types
+yarn add @orderly.network/react-app @orderly.network/trading @orderly.network/portfolio @orderly.network/markets @orderly.network/ui
 ```
 
 ## Core Providers
@@ -33,33 +33,21 @@ yarn add @orderly.network/react @orderly.network/hooks @orderly.network/types
 Wrap your app with the required providers:
 
 ```typescript
-import {
-  OrderlyAppProvider,
-  TradingPageProvider,
-  SymbolProvider,
-  WalletConnector
-} from '@orderly.network/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const queryClient = new QueryClient();
+import { OrderlyAppProvider } from '@orderly.network/react-app';
+import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
+import { TradingPage } from '@orderly.network/trading';
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <WalletConnectorProvider>
       <OrderlyAppProvider
         brokerId="woofi_dex"
-        chainFilter={[42161, 421614]}
+        brokerName="Your DEX"
+        networkId="testnet"
       >
-        <SymbolProvider>
-          <TradingPageProvider>
-            <Layout>
-              <WalletConnector />
-              <TradingPage />
-            </Layout>
-          </TradingPageProvider>
-        </SymbolProvider>
+        <TradingPage symbol="PERP_ETH_USDC" />
       </OrderlyAppProvider>
-    </QueryClientProvider>
+    </WalletConnectorProvider>
   );
 }
 ```
@@ -189,13 +177,13 @@ export function OrderbookWidget({ symbol }: { symbol: string }) {
 ### Basic Wallet Connect
 
 ```typescript
-import { WalletConnect } from '@orderly.network/react';
+import { ConnectWalletButton } from '@orderly.network/ui-connector';
 
 export function Header() {
   return (
     <header className="flex justify-between items-center p-4">
       <div className="logo">My DEX</div>
-      <WalletConnect />
+      <ConnectWalletButton />
     </header>
   );
 }
@@ -205,12 +193,13 @@ export function Header() {
 
 ```typescript
 import { useAccount, useWalletConnector } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 export function CustomWalletButton() {
   const { account, state } = useAccount();
   const wallet = useWalletConnector();
 
-  if (state.status !== 'connected') {
+  if (state.status < AccountStatusEnum.Connected) {
     return (
       <button
         onClick={() => wallet.connect()}
@@ -457,66 +446,30 @@ function App() {
 ## Complete Trading Page Example
 
 ```typescript
-import {
-  OrderlyAppProvider,
-  TradingPageProvider,
-  SymbolProvider,
-  WalletConnect,
-} from '@orderly.network/react';
-import { OrderEntry, OrderEntryProvider } from '@orderly.network/ui-order-entry';
-import { Positions } from '@orderly.network/ui-positions';
-import { Orderbook, OrderbookProvider } from '@orderly.network/ui-orderbook';
-import { TradingView } from '@orderly.network/ui-chart';
-import { useOrderEntry } from '@orderly.network/hooks';
+import { OrderlyAppProvider } from '@orderly.network/react-app';
+import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
+import { TradingPage } from '@orderly.network/trading';
+import { ConnectWalletButton } from '@orderly.network/ui-connector';
 
-function TradingPage() {
-  const symbol = 'PERP_BTC_USDC';
-
+function AppShell() {
   return (
-    <div className="trading-layout">
-      {/* Header */}
+    <div>
       <header className="flex justify-between items-center p-4 border-b">
         <h1>My DEX</h1>
-        <WalletConnect />
+        <ConnectWalletButton />
       </header>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-12 gap-4 p-4">
-        {/* Left: Orderbook */}
-        <div className="col-span-2">
-          <OrderbookProvider symbol={symbol}>
-            <Orderbook level={15} />
-          </OrderbookProvider>
-        </div>
-
-        {/* Center: Chart + Order Entry */}
-        <div className="col-span-7">
-          <div className="h-[500px] mb-4">
-            <TradingView symbol={symbol} />
-          </div>
-          <OrderEntryProvider symbol={symbol}>
-            <OrderEntry defaultTab="limit" />
-          </OrderEntryProvider>
-        </div>
-
-        {/* Right: Positions */}
-        <div className="col-span-3">
-          <Positions showPagination={false} />
-        </div>
-      </div>
+      <TradingPage symbol="PERP_BTC_USDC" />
     </div>
   );
 }
 
 export function App() {
   return (
-    <OrderlyAppProvider brokerId="woofi_dex">
-      <SymbolProvider>
-        <TradingPageProvider>
-          <TradingPage />
-        </TradingPageProvider>
-      </SymbolProvider>
-    </OrderlyAppProvider>
+    <WalletConnectorProvider>
+      <OrderlyAppProvider brokerId="woofi_dex" brokerName="My DEX" networkId="testnet">
+        <AppShell />
+      </OrderlyAppProvider>
+    </WalletConnectorProvider>
   );
 }
 ```

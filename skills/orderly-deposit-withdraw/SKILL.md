@@ -48,6 +48,37 @@ This skill covers depositing and withdrawing assets on Orderly Network, includin
 8. Balance updates on Orderly
 ```
 
+## Exclusive Receiver Address Deposit
+
+Orderly also supports deposit by plain ERC-20 transfer for eligible EVM regular accounts. Each account gets a deterministic receiver address; users can fund by sending supported tokens to that address from a wallet, CEX, smart contract, or multisig. No wallet connection, gas token, approval, or vault transaction is required from the user for this flow.
+
+### When to Offer This Flow
+
+- Check `GET /v1/public/token` and inspect each token's `chain_details`; only entries with `exclusive_deposit_supported: true` are eligible.
+- Current docs list Arbitrum (`42161`) and BNB Chain (`56`) for USDC/USDT with a minimum deposit of 5, but always rely on the API response.
+- Only regular EVM accounts are eligible. Solana accounts, sub-accounts, and Strategy Providers are not supported.
+
+### Integration Steps
+
+```text
+1. Call GET /v1/client/asset/receiver_address?chain_id={chain_id}&token={token}
+2. Show receiver_address, token_address, and minimum_deposit to the user
+3. User sends a standard ERC-20 transfer to receiver_address
+4. Poll GET /v1/client/asset/receiver_events every ~10 seconds
+5. Confirm final credit with GET /v1/asset/history?side=DEPOSIT
+```
+
+Receiver event statuses:
+
+| Status      | Meaning                                      |
+| ----------- | -------------------------------------------- |
+| `PENDING`   | Transfer detected and waiting for processing |
+| `PROCESSED` | Deposit transaction submitted on-chain       |
+| `COMPLETED` | Balance credited to the Orderly account      |
+| `FAILED`    | Processing failed and may retry              |
+
+Warn users clearly: transfers below `minimum_deposit`, unsupported tokens, or unsupported chains are not deposited, refunded, or recoverable.
+
 ## React SDK: Complete Deposit Workflow
 
 ### Step 1: Fetch Chain Information

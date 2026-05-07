@@ -5,7 +5,7 @@ description: Install Orderly SDK packages and related dependencies (hooks, UI, f
 
 # Orderly Network: SDK Install Dependency
 
-Use this skill to add Orderly SDK packages to your project. The SDK is modular—install only what you need.
+Use this skill to add Orderly SDK packages to your project. The SDK is modular; install only what you need.
 
 ## When to Use
 
@@ -22,7 +22,7 @@ Use this skill to add Orderly SDK packages to your project. The SDK is modular�
 
 ## Quick Start (Full DEX)
 
-> **IMPORTANT**: A functional DEX requires BOTH the Orderly packages AND the wallet connector dependencies. The `@orderly.network/wallet-connector` package needs `@web3-onboard/*` packages for EVM wallets and `@solana/wallet-adapter-*` packages for Solana wallets.
+> **IMPORTANT**: A functional DEX requires Orderly packages plus a wallet connector. The standard `@orderly.network/wallet-connector` works with sensible defaults; install `@web3-onboard/*` and `@solana/wallet-adapter-*` only when you need custom wallet configuration.
 >
 > **Note**: `@orderly.network/hooks` is included as a transitive dependency via `@orderly.network/react-app` — you do not need to install it separately for most DEX projects. Only install it directly if you are using the hooks-only integration path without `react-app`.
 
@@ -35,10 +35,10 @@ npm install @orderly.network/react-app \
             @orderly.network/wallet-connector \
             @orderly.network/i18n
 
-# REQUIRED: EVM wallet support (MetaMask, WalletConnect, etc.)
+# Optional: custom EVM wallet support (MetaMask, WalletConnect, etc.)
 npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
 
-# REQUIRED: Solana wallet support (Phantom, Solflare, etc.)
+# Optional: custom Solana wallet support (Phantom, Solflare, etc.)
 npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 ```
 
@@ -46,17 +46,40 @@ npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 
 ### Core Packages
 
-| Package                      | Description                                           | Key Exports                                                                                                                    |
-| ---------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `@orderly.network/react-app` | Main app provider, config context, error boundary     | `OrderlyAppProvider`, `useAppContext`, `useAppConfig`, `ErrorBoundary`                                                         |
-| `@orderly.network/hooks`     | React hooks for trading, account, orders, positions   | `useAccount`, `useOrderEntry`, `usePositionStream`, `useOrderStream`, `useDeposit`, `useWithdraw`, `useLeverage`, `useMarkets` |
-| `@orderly.network/types`     | TypeScript type definitions and constants             | `API`, `OrderType`, `OrderSide`, `OrderStatus`, `NetworkId`, `ChainConfig`                                                     |
-| `@orderly.network/ui`        | Base UI components (buttons, inputs, dialogs, tables) | `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Select`, `Tooltip`, `Modal`, `Spinner`, `toast`, `OrderlyThemeProvider`         |
-| `@orderly.network/i18n`      | Internationalization (i18n) support                   | `LocaleProvider`, `useTranslation`, `i18n`, `defaultLanguages`                                                                 |
-| `@orderly.network/utils`     | Utility functions (formatting, math, dates)           | `formatNumber`, `Decimal`, `dayjs`                                                                                             |
+| Package                        | Description                                           | Key Exports                                                                                                                    |
+| ------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `@orderly.network/react-app`   | Main app provider, config context, error boundary     | `OrderlyAppProvider`, `useAppContext`, `useAppConfig`, `ErrorBoundary`                                                         |
+| `@orderly.network/hooks`       | React hooks for trading, account, orders, positions   | `useAccount`, `useOrderEntry`, `usePositionStream`, `useOrderStream`, `useDeposit`, `useWithdraw`, `useLeverage`, `useMarkets` |
+| `@orderly.network/types`       | TypeScript type definitions and constants             | `API`, `OrderType`, `OrderSide`, `OrderStatus`, `NetworkId`, `ChainConfig`                                                     |
+| `@orderly.network/ui`          | Base UI components (buttons, inputs, dialogs, tables) | `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Select`, `Tooltip`, `Modal`, `Spinner`, `toast`, `OrderlyThemeProvider`         |
+| `@orderly.network/i18n`        | Internationalization (i18n) support                   | `LocaleProvider`, `useTranslation`, `i18n`, `defaultLanguages`                                                                 |
+| `@orderly.network/utils`       | Utility functions (formatting, math, dates)           | `formatNumber`, `Decimal`, `dayjs`                                                                                             |
+| `@orderly.network/plugin-core` | SDK v3 plugin/interceptor primitives and plugin docs  | Plugin runtime types and plugin authoring references                                                                           |
 
 ```bash
 npm install @orderly.network/react-app @orderly.network/hooks @orderly.network/types @orderly.network/ui @orderly.network/i18n
+```
+
+## SDK v3 Plugins
+
+SDK v3 adds the plugin system for Marketplace modules and host-level UI extensions. Install plugin support only when authoring advanced modules or reading plugin runtime docs:
+
+```bash
+npm install @orderly.network/plugin-core
+pnpm add -g @orderly.network/devkit
+```
+
+Register plugins on `OrderlyAppProvider`:
+
+```tsx
+<OrderlyAppProvider
+  brokerId="your_broker_id"
+  brokerName="Your DEX"
+  networkId="mainnet"
+  plugins={[registerYourPlugin()]}
+>
+  {children}
+</OrderlyAppProvider>
 ```
 
 ## Feature Widgets (High-Level Pages)
@@ -277,15 +300,15 @@ export default defineConfig({
 
 ## Version Compatibility
 
-All `@orderly.network/*` packages should use the same version to ensure compatibility.
+All `@orderly.network/*` packages should use the same version to ensure compatibility. The checked-in SDK/docs materials are aligned to `3.0.2`; use `^3.0.2` or pin exact `3.0.2` when you need reproducible builds.
 
 ```json
 {
   "dependencies": {
-    "@orderly.network/react-app": "^2.8.0",
-    "@orderly.network/trading": "^2.8.0",
-    "@orderly.network/hooks": "^2.8.0",
-    "@orderly.network/ui": "^2.8.0"
+    "@orderly.network/react-app": "^3.0.2",
+    "@orderly.network/trading": "^3.0.2",
+    "@orderly.network/hooks": "^3.0.2",
+    "@orderly.network/ui": "^3.0.2"
   }
 }
 ```

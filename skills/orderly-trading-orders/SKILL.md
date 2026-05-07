@@ -52,6 +52,9 @@ interface OrderRequest {
   visible_quantity?: number; // For hidden orders (0 = hidden)
   client_order_id?: string; // Your custom ID
   trigger_price?: string; // For stop orders
+  reduce_only?: boolean; // Use when closing/reducing positions
+  margin_mode?: 'CROSS' | 'ISOLATED'; // Optional; defaults to user's symbol setting
+  order_tag?: string; // Referral code or enum:<enum_id> custom fee tag
 }
 ```
 
@@ -95,6 +98,36 @@ const order = await placeOrder({
   order_quantity: 0.1,
 });
 ```
+
+## Isolated Margin Orders
+
+Cross and Isolated margin can coexist on the same symbol. Specify `margin_mode` per order when you want isolated risk:
+
+```json
+{
+  "symbol": "PERP_ETH_USDC",
+  "side": "BUY",
+  "order_type": "LIMIT",
+  "order_price": 2500,
+  "order_quantity": 1,
+  "margin_mode": "ISOLATED"
+}
+```
+
+Set isolated leverage first with `POST /v1/client/leverages` and `margin_mode: "ISOLATED"`. If `margin_mode` is omitted, Orderly uses the symbol's default display mode; it does not prevent trading the other mode explicitly.
+
+## Order Tags and Custom Per-Order Fees
+
+`order_tag` supports referral attribution and builder-defined custom fee categories:
+
+| Format              | Example             | Behavior                                                   |
+| ------------------- | ------------------- | ---------------------------------------------------------- |
+| Plain referral code | `REFERRAL2026`      | Overrides referral attribution                             |
+| Custom fee enum     | `enum:STRATEGY_DCA` | Applies an additional order tag fee and preserves referral |
+
+Apply `order_tag` on `POST /v1/order`, each order in `POST /v1/batch-order`, or `POST /v1/algo/order`. The tag is immutable after placement; cancel and replace to change it.
+
+For custom fee tags, fetch active configs with `GET /v1/public/broker/order_enums?broker_id={broker_id}` and disclose the extra fee separately. Trade rows return `order_enum_fee` and `order_enum_fee_rate`; total `fee` includes both standard trading fee and order tag fee.
 
 ## React SDK: useOrderEntry
 

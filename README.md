@@ -119,6 +119,7 @@ npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
 |                     | `orderly-sdk-page-components`    | Pre-built page components (TradingPage, Portfolio, Markets)                                                         |
 |                     | `orderly-sdk-theming`            | CSS variable theming and customization                                                                              |
 |                     | `orderly-sdk-trading-workflows`  | End-to-end trading flows (connect → deposit → trade → withdraw)                                                     |
+|                     | `orderly-sdk-plugins`            | SDK v3 plugins, interceptors, and Module Marketplace workflows                                                      |
 | **Platform**        | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana chains                                                                        |
 |                     | `orderly-sdk-debugging`          | Debug and troubleshoot SDK errors                                                                                   |
 | **Orderly One**     | `orderly-one-general`            | Overview of Orderly One white-label DEX platform - launch paths, authentication, API base URLs                      |
@@ -189,6 +190,7 @@ Order management including:
 - React SDK useOrderEntry hook
 - Batch operations
 - Order validation
+- Isolated margin and `order_tag` custom fee integration
 
 ### orderly-positions-tpsl
 
@@ -199,6 +201,7 @@ Position and risk management:
 - Take-Profit / Stop-Loss orders
 - Leverage settings
 - Position closing
+- Isolated margin position adjustments
 
 ### orderly-websocket-streaming
 
@@ -214,6 +217,7 @@ Real-time data streaming:
 Asset management:
 
 - Token deposits via vault
+- Exclusive receiver address deposits
 - Withdrawal flow with signing
 - Cross-chain transfers
 - Internal transfers

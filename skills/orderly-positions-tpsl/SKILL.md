@@ -34,6 +34,8 @@ interface Position {
   imr: number; // Initial margin ratio
   notional: number; // Position value
   leverage: number; // Current leverage
+  margin?: number; // Isolated margin allocated to this position
+  margin_mode?: 'CROSS' | 'ISOLATED';
   est_liq_price: number; // Estimated liquidation price
   cost_position: number; // Position cost
   settle_price: number; // Settlement price
@@ -180,7 +182,7 @@ Body: {
 ### Get Current Leverage
 
 ```typescript
-GET /v1/client/leverage?symbol={symbol}
+GET /v1/client/leverage?symbol={symbol}&margin_mode={CROSS|ISOLATED}
 
 // Response
 {
@@ -199,6 +201,7 @@ POST /v1/client/leverage
 Body: {
   symbol: 'PERP_ETH_USDC',
   leverage: 15,  // New leverage value
+  margin_mode: 'ISOLATED', // Optional; include when setting isolated leverage
 }
 
 // React SDK
@@ -230,6 +233,34 @@ function LeverageSlider({ symbol }: { symbol: string }) {
   );
 }
 ```
+
+## Isolated Margin Position Management
+
+For isolated positions, include `margin_mode=ISOLATED` when querying leverage or a single position:
+
+```typescript
+GET /v1/position/PERP_ETH_USDC?margin_mode=ISOLATED
+```
+
+The response includes isolated-specific fields such as `margin`, `margin_mode`, `leverage`, and `est_liq_price`. Account aggregate holding also includes:
+
+| Field                   | Description                                  |
+| ----------------------- | -------------------------------------------- |
+| `isolated_margin`       | Total margin allocated to isolated positions |
+| `isolated_order_frozen` | Margin frozen in pending isolated orders     |
+
+Adjust isolated position margin after opening a position:
+
+```typescript
+POST /v1/position_margin
+Body: {
+  symbol: 'PERP_ETH_USDC',
+  amount: '100',
+  type: 'ADD' // or 'REDUCE'
+}
+```
+
+`ADD` transfers available balance into the isolated position and lowers liquidation risk. `REDUCE` frees margin back to available balance and raises liquidation risk. Isolated liquidation affects only that isolated position's allocated margin.
 
 ## Take-Profit / Stop-Loss Orders
 

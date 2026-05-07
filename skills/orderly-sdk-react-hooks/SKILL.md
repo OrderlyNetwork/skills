@@ -17,35 +17,31 @@ Complete reference for all hooks provided by `@orderly.network/hooks`.
 
 - React 18+
 - `@orderly.network/hooks` installed
-- OrderlyConfigProvider wrapping your app
+- `OrderlyAppProvider` wrapping your app
 
 ## Installation
 
 ```bash
-npm install @orderly.network/hooks @orderly.network/types
+npm install @orderly.network/react-app @orderly.network/hooks @orderly.network/types
 
 # Or with yarn
-yarn add @orderly.network/hooks @orderly.network/types
+yarn add @orderly.network/react-app @orderly.network/hooks @orderly.network/types
 ```
 
 ## Setup
 
 ```typescript
-import { OrderlyAppProvider } from '@orderly.network/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const queryClient = new QueryClient();
+import { OrderlyAppProvider } from '@orderly.network/react-app';
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <OrderlyAppProvider
-        brokerId="woofi_dex"
-        chainFilter={[42161, 421614]}
-      >
-        <YourApp />
-      </OrderlyAppProvider>
-    </QueryClientProvider>
+    <OrderlyAppProvider
+      brokerId="woofi_dex"
+      brokerName="Your DEX"
+      networkId="testnet"
+    >
+      <YourApp />
+    </OrderlyAppProvider>
   );
 }
 ```
@@ -60,12 +56,14 @@ Access account state and actions.
 
 ```typescript
 import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 const { account, state } = useAccount();
 
 // State
-state.status: 'notConnected' | 'connecting' | 'connected' | 'disconnecting'
-state.address: string | null
+state.status: AccountStatusEnum
+state.address?: string
+state.accountId?: string
 
 // Account
 account.accountId: string
@@ -78,7 +76,7 @@ account.setAddress(address, options): void
 function AccountInfo() {
   const { account, state } = useAccount();
 
-  if (state.status !== 'connected') {
+  if (state.status < AccountStatusEnum.Connected) {
     return <button onClick={() => account.connect()}>Connect</button>;
   }
 
@@ -710,9 +708,8 @@ import {
   usePositionStream,
   useOrderbookStream,
   useCollateral,
-  OrderSide,
-  OrderType,
 } from '@orderly.network/hooks';
+import { AccountStatusEnum, OrderSide, OrderType } from '@orderly.network/types';
 
 function TradingInterface({ symbol }: { symbol: string }) {
   const { state } = useAccount();
@@ -721,7 +718,7 @@ function TradingInterface({ symbol }: { symbol: string }) {
   const { freeCollateral } = useCollateral();
   const { submit, setValue, getValue, helper } = useOrderEntry(symbol);
 
-  if (state.status !== 'connected') {
+  if (state.status < AccountStatusEnum.Connected) {
     return <ConnectWallet />;
   }
 
