@@ -63,95 +63,23 @@ Your Application (DEX, Bot, Wallet, Aggregator)
 
 ## Getting Started: AI Agent Tools
 
-To build on Orderly, **install the MCP server** for the best development experience. It provides 8 powerful tools for documentation search, SDK patterns, contract addresses, workflows, and API reference.
+To build on Orderly, use the **MCP server** for the best development experience. It provides 8 powerful tools for documentation search, SDK patterns, contract addresses, workflows, and API reference. You can either **connect to the remote server** (no installation) or **install it locally** via npx.
 
-### MCP Server (Recommended)
+### Remote MCP Server
 
-The MCP server provides AI assistants with instant access to Orderly documentation, code patterns, and API references.
+Connect to the hosted MCP server at `https://mcp.orderly.network` — no installation required. Uses Streamable HTTP transport with no authentication needed. Point your AI client's MCP config to this URL.
 
-**Quick Install:**
+### Local MCP Server
+
+Install the MCP server locally via npx — works offline and gives you full control.
 
 ```bash
 npx @orderly.network/mcp-server init --client <client>
 ```
 
-**Supported Clients:**
+If automatic setup doesn't work, manually configure your AI client to run `npx @orderly.network/mcp-server@latest`.
 
-| Client      | Command             | Config File            |
-| ----------- | ------------------- | ---------------------- |
-| Claude Code | `--client claude`   | `.mcp.json`            |
-| Cursor      | `--client cursor`   | `.cursor/mcp.json`     |
-| VS Code     | `--client vscode`   | `.vscode/mcp.json`     |
-| Codex       | `--client codex`    | `~/.codex/config.toml` |
-| OpenCode    | `--client opencode` | `.opencode/mcp.json`   |
-
-**Manual Configuration:**
-
-If automatic setup doesn't work, add this configuration to your AI client:
-
-**Claude Code** (`.mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "orderly": {
-      "command": "npx",
-      "args": ["@orderly.network/mcp-server@latest"]
-    }
-  }
-}
-```
-
-**Cursor** (`.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "orderly": {
-      "command": "npx",
-      "args": ["@orderly.network/mcp-server@latest"]
-    }
-  }
-}
-```
-
-**VS Code** (`.vscode/mcp.json`):
-
-```json
-{
-  "servers": {
-    "orderly": {
-      "command": "npx",
-      "args": ["@orderly.network/mcp-server@latest"]
-    }
-  }
-}
-```
-
-**OpenCode** (`.opencode/mcp.json`):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "orderly": {
-      "type": "local",
-      "command": ["npx", "@orderly.network/mcp-server@latest"],
-      "enabled": true
-    }
-  }
-}
-```
-
-**Codex** (`~/.codex/config.toml`):
-
-```toml
-[mcp_servers.orderly]
-command = "npx"
-args = ["@orderly.network/mcp-server@latest"]
-```
-
-**What the MCP Server Provides:**
+**What the MCP Server Provides (both remote and local):**
 
 | Tool                       | Description                                      |
 | -------------------------- | ------------------------------------------------ |
@@ -225,6 +153,17 @@ npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 ## For Builders (SDK & DEX Development)
 
 Build custom trading interfaces using Orderly's React SDK v3.
+
+### Fastest Way to Get Started
+
+Fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** to get a working DEX in minutes.
+
+1. Fork the repository to your GitHub account
+2. Configure `.env` with your broker ID and name
+3. Customize your theme with **orderly-sdk-theming** (CSS variables and color tokens)
+4. Deploy to your preferred hosting platform
+
+This template uses the **components SDK** — pre-built page components that work out of the box with less customization. For full control over individual components, use the MCP server and load SDK skills (especially **orderly-sdk-react-hooks** and **orderly-sdk-ui-components**) for hooks-level development.
 
 **Core SDK Packages:**
 
@@ -373,12 +312,13 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ## Key Links
 
-| Resource         | URL                                                       |
-| ---------------- | --------------------------------------------------------- |
-| Documentation    | https://orderly.network/docs                              |
-| SDK Repository   | https://github.com/orderlynetwork/js-sdk                  |
-| Example DEX      | https://github.com/orderlynetwork/example-dex             |
-| MCP Server (npm) | https://www.npmjs.com/package/@orderly.network/mcp-server |
+| Resource              | URL                                                                    | Notes                                          |
+| --------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| Documentation         | https://orderly.network/docs                                           |                                                |
+| SDK Repository        | https://github.com/orderlynetwork/js-sdk                               |                                                |
+| DEX Template  | https://github.com/OrderlyNetwork/dex-template       | Fastest start, uses components SDK             |
+| MCP Server (Remote)   | https://mcp.orderly.network                                          | No install needed                              |
+| MCP Server (npm)      | https://www.npmjs.com/package/@orderly.network/mcp-server           | Local install                                  |
 | CLI (npm)        | https://www.npmjs.com/package/@orderly.network/cli        |
 | Skills (npm)     | https://www.npmjs.com/package/@orderly.network/skills     |
 | Skills.sh        | https://skills.sh                                         |
@@ -391,15 +331,16 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 **If you're building a DEX:**
 
-1. Load **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture**
-2. Install MCP server: `npx @orderly.network/mcp-server init`
-3. Set up wallet connection with **orderly-sdk-wallet-connection**
-4. Build your UI with **orderly-ui-components**
+1. Fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** for the fastest start
+2. Install MCP server: `npx @orderly.network/mcp-server init` or connect to `https://mcp.orderly.network`
+3. Configure your broker settings in `.env` and customize your theme
+4. For more control, load **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture** to build from scratch
+5. Set up wallet connection with **orderly-sdk-wallet-connection**
 
 **If you're building trading bots or API integrations:**
 
 1. Load **orderly-api-authentication** first
-2. Install MCP server for API reference
+2. Install MCP server locally or connect to `https://mcp.orderly.network` for API reference
 3. Load **orderly-trading-orders** and **orderly-websocket-streaming**
 
 **If you want to trade from the terminal or use the CLI:**
@@ -411,14 +352,14 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 **If you're launching a white-label DEX:**
 
-1. Install MCP server for Orderly One API tools: `npx @orderly.network/mcp-server init`
+1. Install MCP server for Orderly One API tools: `npx @orderly.network/mcp-server init` or connect to `https://mcp.orderly.network`
 2. Load **orderly-one-dex** skill for DEX creation and management workflows
 3. Load **orderly-sdk-theming** skill to understand theme structure for API updates
 
 **If you're troubleshooting:**
 
 1. Load **orderly-sdk-debugging**
-2. Use MCP server to search documentation
+2. Use MCP server to search documentation (remote or local)
 
 **For testing:**
 
@@ -430,13 +371,15 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ### "Where do I start building?"
 
-Install the MCP server first: `npx @orderly.network/mcp-server init --client <your-client>`
+**For a quick DEX**: Fork the [DEX Template](https://github.com/OrderlyNetwork/dex-template), configure `.env`, and deploy. Uses pre-built components — fastest path.
+
+**For more control**: Set up the MCP server — either connect to `https://mcp.orderly.network` (remote, no install) or install locally with `npx @orderly.network/mcp-server init --client <your-client>`. Then load SDK skills like **orderly-sdk-react-hooks** and **orderly-sdk-dex-architecture** to build with the hooks SDK.
 
 Then ask: "How do I connect to Orderly Network?" or load **orderly-sdk-wallet-connection**.
 
 ### "What's the difference between MCP server and Skills?"
 
-- **MCP Server**: Runtime tools for your AI assistant (documentation search, pattern lookup, API reference)
+- **MCP Server**: Runtime tools for your AI assistant (documentation search, pattern lookup, API reference) — available as a remote server at `https://mcp.orderly.network` or installable locally via npx
 - **Skills**: Procedural knowledge embedded in your context (how-to guides, code examples, best practices)
 
 Use both for the best experience.

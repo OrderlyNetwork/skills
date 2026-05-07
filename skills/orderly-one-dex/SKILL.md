@@ -1,11 +1,25 @@
 ---
 name: orderly-one-dex
-description: Create and manage a custom DEX using Orderly One API - deployment, custom domains, graduation, and theming
+description: Create and manage a custom white-label DEX using Orderly One - launch paths, deployment, custom domains, graduation, theming, and admin operations
 ---
 
 # Orderly Network: Orderly One DEX
 
-**Orderly One** is a white-label DEX platform. Users configure a DEX (name, branding, chains), the API forks a GitHub template repo, and GitHub Actions deploys to GitHub Pages. Graduated DEXs earn fee splits.
+**Orderly One** ([https://dex.orderly.network](https://dex.orderly.network)) is a platform that lets anyone launch a white-label perpetual-futures DEX on Orderly Network — with or without code. It serves as both:
+
+1. **A web UI** at [dex.orderly.network](https://dex.orderly.network) where humans can create, configure, and deploy a DEX through a step-by-step wizard.
+2. **A REST API** that an AI agent or script can call to do the same thing programmatically.
+
+> **Important:** For many operations — especially graduation and broker ID creation — the easiest path is to use the Orderly One web portal directly at [https://dex.orderly.network/dex](https://dex.orderly.network/dex). Always inform users that this option exists. Not everything has to be done through the API.
+
+## Two Launch Paths
+
+| Path               | Description                                                                                                                          | Graduation Fee | Who It's For                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ------------------------------------------------------- |
+| **Low-code**       | Create a branded DEX frontend via Orderly One portal or API. It forks a template repo and deploys to GitHub Pages.                   | $100           | Teams wanting fast launch with minimal frontend work    |
+| **Custom SDK/API** | Use the Orderly SDK or API to build a fully custom frontend. Graduate via Orderly One to get a broker ID — no DEX frontend required. | $10            | Wallets, existing exchanges, teams wanting full control |
+
+See the official builder onboarding guide: [https://orderly.network/docs/introduction/getting-started/builder-onboarding](https://orderly.network/docs/introduction/getting-started/builder-onboarding)
 
 ## When to Use
 
@@ -13,12 +27,32 @@ description: Create and manage a custom DEX using Orderly One API - deployment, 
 - Managing DEX deployment, domains, or themes
 - Handling graduation for fee sharing
 
+---
+
+## Key Concepts
+
+- **Broker ID**: A unique identifier in the Orderly ecosystem. Starts as `"demo"` and becomes a real broker ID after graduation. This is how your DEX earns trading fees.
+- **Graduation**: The process of converting a demo DEX into a fee-earning DEX by paying $10-$100 and registering as a broker.
+- **Template Repository**: The GitHub repo that gets forked for each low-code DEX. Contains the Orderly SDK trading frontend.
+- **One DEX Per User**: Each wallet address can create exactly one DEX.
+
+---
+
 ## API Base URLs
 
 | Environment | Base URL                                  |
 | ----------- | ----------------------------------------- |
 | Mainnet     | `https://dex-api.orderly.network`         |
 | Testnet     | `https://testnet-dex-api.orderly.network` |
+
+The API exposes an interactive OpenAPI spec (Scalar) at the root: `GET /`
+
+## Graduation-Supported Chains (Payment)
+
+Mainnet: Ethereum (1), Arbitrum (42161), Base (8453)
+Testnet: Sepolia, Arbitrum Sepolia, Base Sepolia
+
+---
 
 ## API Categories
 
@@ -136,10 +170,15 @@ Both `POST /api/dex` (create) and `PUT /api/dex/{id}` (update) use `multipart/fo
 
 ### Authentication
 
-1. `POST /api/auth/nonce` with `{ address }` → get message to sign
-2. Sign: `"Sign this message to authenticate with Orderly One: {nonce}"`
-3. `POST /api/auth/verify` with `{ address, signature }` → get JWT
-4. Use `Authorization: Bearer {token}` for all requests
+Orderly One has its own auth system, separate from the Orderly Network API (`api.orderly.org`). It uses standard EVM `personal_sign` (EIP-191) — **EVM wallets only** (`0x` addresses).
+
+1. `POST /api/auth/nonce` with `{ "address": "0x..." }` → `{ message, nonce }`
+2. Sign the returned `message` using `personal_sign` (EIP-191)
+3. `POST /api/auth/verify` with `{ "address": "0x...", "signature": "0x..." }` → `{ user: { id, address }, token }`
+4. Use `Authorization: Bearer {token}` for all subsequent requests (expires 24h)
+5. Validate: `POST /api/auth/validate` with `{ "address", "token" }` → `{ valid: true/false }`
+
+> **Note:** The graduation "finalize admin wallet" step requires authenticating with the Orderly Network API (`api.orderly.org`) — a separate system using EIP-712 or Ed25519 signing. See the graduation workflow below.
 
 ### Create DEX Flow
 
@@ -149,36 +188,72 @@ Both `POST /api/dex` (create) and `PUT /api/dex/{id}` (update) use `multipart/fo
 
 ### Graduation (Fee Sharing)
 
-1. `GET /api/graduation/fee-options` → USDC/ORDER amounts + `receiverAddress`
-2. Transfer tokens on **Ethereum, Arbitrum, or Base** to `receiverAddress`
-3. `POST /api/graduation/verify-tx` with `{ txHash, chain, chainId, chainType: "EVM", brokerId, makerFee, takerFee, rwaMakerFee, rwaTakerFee, paymentType }` → creates broker ID
+**Prerequisites:** DEX created with `brokerId: "demo"` (not already graduated), payment tokens on a supported chain.
 
-**After broker ID created, finalize admin wallet:**
+**Step 1 — Get Fee Options:**
 
-**EVM Wallet:** 4. Register with Orderly Network API:
+`GET /api/graduation/fee-options` → `{ usdc: { amount }, usdt: { amount }, order: { amount, currentPrice }, receiverAddress }`
 
-- `GET https://api.orderly.org/v1/registration_nonce`
-- Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }`
-- `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
+- Low-code: $100 | Custom SDK: $10
+- Payment in USDC, USDT, or ORDER (ORDER amount varies with price)
 
-5. `POST /api/graduation/finalize-admin-wallet` (empty body)
+**Step 2 — Send Payment On-Chain:**
 
-**Solana Wallet:** 4. Register with Orderly Network API:
+ERC-20 `transfer()` to `receiverAddress` on a supported chain. Save the tx hash.
 
-- `GET https://api.orderly.org/v1/registration_nonce`
-- Sign message with Solana wallet: `{ brokerId, chainId: 900900900, timestamp, registrationNonce }`
-- `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "SOL" }`
+| Network | Chains | Tokens |
+|---------|--------|--------|
+| Mainnet | Ethereum, Arbitrum, Base | USDC, USDT, ORDER |
+| Testnet | Sepolia, Arbitrum Sepolia, Base Sepolia | USDC, USDT, ORDER |
 
-5. `POST /api/graduation/finalize-admin-wallet` (empty body)
+**Step 3 — Verify Transaction:**
 
-**EVM Multisig/Gnosis Safe:** 4. In Safe Wallet → Transaction Builder → create batch:
+`POST /api/graduation/verify-tx` with:
 
-- **To:** Orderly Vault contract (chain-specific)
-- **Method:** `delegateSigner`
-- **Data:** `[keccak256(brokerId), userAddress]`
+| Field | Description |
+|-------|-------------|
+| `txHash` | Payment transaction hash |
+| `chain` | `ethereum`, `arbitrum`, `base`, `sepolia`, `arbitrum-sepolia`, `base-sepolia` |
+| `chainId` | Chain ID (e.g. `42161`) |
+| `chain_type` | `"EVM"` |
+| `brokerId` | Your chosen unique broker ID |
+| `makerFee` | Maker fee in bps (min 3) |
+| `takerFee` | Taker fee in bps (min 6, typically 2x maker) |
+| `rwaMakerFee` | RWA maker fee in bps |
+| `rwaTakerFee` | RWA taker fee in bps |
+| `paymentType` | `"USDC"`, `"USDT"`, or `"ORDER"` |
 
-5. Execute on Safe with required signer approvals
-6. `POST /api/graduation/finalize-admin-wallet` with `{ multisigAddress, multisigChainId }`
+The API verifies: tx exists, sender matches authenticated user, recipient is correct `receiverAddress`, amount meets fee, tx not reused, `brokerId` not taken.
+
+**Step 4 — Register Admin Wallet (required to complete graduation):**
+
+**EVM Wallet:**
+
+1. `GET https://api.orderly.org/v1/registration_nonce`
+2. Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }`
+3. `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
+4. `POST /api/graduation/finalize-admin-wallet` (empty body)
+
+**Solana Wallet:**
+
+1. Same flow but `chainId: 900900900`, sign with Solana wallet, `chainType: "SOL"`
+
+**EVM Multisig/Gnosis Safe:**
+
+1. Safe Wallet → Transaction Builder → batch: `delegateSigner` on Vault contract with `[keccak256(brokerId), userAddress]`
+2. Execute with signer approvals
+3. `POST /api/graduation/finalize-admin-wallet` with `{ multisigAddress, multisigChainId }`
+
+> **Note:** Step 4 authenticates with the Orderly Network API (`api.orderly.org`), not Orderly One — different auth system (EIP-712/Ed25519).
+
+**Graduation Status & Fees:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/graduation/status` | Basic status: `{ currentBrokerId, approved }` |
+| `GET /api/graduation/graduation-status` | Detailed: `{ isGraduated, brokerId, isMultisig, multisigAddress }` |
+| `GET /api/graduation/fees` | Current maker/taker/RWA fee rates |
+| `GET /api/graduation/tier` | Builder Staking Programme tier |
 
 ---
 
@@ -196,17 +271,21 @@ This skill references the Orderly MCP server. If not installed, see **orderly-on
 
 ## Common Issues
 
-| Issue                   | Solution                                                     |
-| ----------------------- | ------------------------------------------------------------ |
-| DEX stuck deploying     | Check `/api/dex/{id}/workflow-runs/{runId}` for job failures |
-| Domain not working      | CNAME to `{org}.github.io`, wait for DNS propagation         |
-| Graduation verify fails | Confirm tx to `receiverAddress`, wait for confirmations      |
-| Logo upload fails       | Check file size limits (250KB primary, 100KB secondary)      |
-| Invalid CSS             | Validate `themeCSS` syntax before submitting                 |
+| Issue                       | Solution                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| DEX stuck deploying         | Check `/api/dex/{id}/workflow-runs/{runId}` for job failures                            |
+| Domain not working          | CNAME to `{org}.github.io`, wait for DNS propagation                                    |
+| Graduation verify fails     | Confirm tx to `receiverAddress`, wait for confirmations                                 |
+| "Broker ID already taken"   | Choose a different `brokerId` in verify-tx                                              |
+| "Transaction hash already used" | Each tx can only be used once (anti-replay). Send a new payment                     |
+| "Must register EVM address" | Complete admin wallet registration (Step 4) before calling `finalize-admin-wallet`      |
+| "Already graduated"         | Each user can only graduate once                                                        |
+| Logo upload fails           | Check file size limits (250KB primary, 100KB secondary)                                 |
+| Invalid CSS                 | Validate `themeCSS` syntax before submitting                                            |
 
 ---
 
 ## Related Skills
 
-- **orderly-onboarding** - Account setup
+- **orderly-onboarding** - Account setup and builder onboarding
 - **orderly-trading-orders** - Trading functionality
