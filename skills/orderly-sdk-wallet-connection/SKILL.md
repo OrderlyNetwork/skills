@@ -1,215 +1,245 @@
 ---
 name: orderly-sdk-wallet-connection
-description: Comprehensive guide to integrating wallet connection in Orderly Network DEX applications, supporting both EVM (Ethereum, Arbitrum, etc.) and Solana wallets.
+description: Comprehensive guide to integrating wallet connection in Orderly Network DEX applications, supporting both EVM (Ethereum, Arbitrum, etc.) and Solana wallets, plus Privy social login.
 ---
 
 # Orderly Network: SDK Wallet Connection
 
-A comprehensive guide to integrating wallet connection in Orderly Network DEX applications, supporting both EVM (Ethereum, Arbitrum, etc.) and Solana wallets.
+A comprehensive guide to integrating wallet connection in Orderly Network DEX applications, supporting EVM (Ethereum, Arbitrum, Optimism, Base, etc.) and Solana wallets, with an optional Privy (social login) path.
 
 ## When to Use
 
 - Setting up wallet connection for a new DEX
 - Supporting multiple wallet types (MetaMask, Phantom, etc.)
 - Implementing chain switching
-- Managing authentication state
+- Choosing between the standard connector and Privy
 
 ## Prerequisites
 
-- Orderly SDK packages installed
+- Orderly SDK packages installed (see `orderly-sdk-install-dependency`)
 - Providers configured (see `orderly-sdk-dex-architecture`)
-- Wallet packages installed (`@web3-onboard/*`, `@solana/wallet-adapter-*`)
+- Wallet packages installed
 
 ## Overview
 
-Orderly Network supports **omnichain trading**, meaning users can connect wallets from multiple blockchain ecosystems:
+Orderly Network supports **omnichain trading** — users connect wallets from multiple ecosystems:
 
-- **EVM Chains**: Ethereum, Arbitrum, Optimism, Base, Polygon, BSC, Avalanche, etc.
+- **EVM Chains**: Arbitrum, Optimism, Base, Ethereum, BSC, etc.
 - **Solana**: Mainnet and Devnet
 
-The SDK provides a unified wallet connection layer that abstracts the differences between these ecosystems.
+The SDK ships **two** connector packages; pick one:
 
-## Wallet Connector Package
+| Package                                   | Use when                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `@orderly.network/wallet-connector`       | Default — Web3-Onboard (EVM) + Solana wallet adapters                |
+| `@orderly.network/wallet-connector-privy` | You want social login (Google, X, email, passkey) / embedded wallets |
 
-> **Note**: The `@orderly.network/wallet-connector` package works out of the box with sensible defaults. Both `solanaInitial` and `evmInitial` props are **optional**.
+The provider is selected at runtime: if a Privy app id is configured, the Privy connector is used; otherwise the standard connector.
+
+> **Both `evmInitial` and `solanaInitial` are configured props** — they carry the wallet network and the wallet list. A real DEX does not omit them. The reference template always passes them (disabling one side individually via config flags).
+
+## Required Dependencies
 
 ```bash
-# Main connector package
+# Connector package
 npm install @orderly.network/wallet-connector
 
-# Optional: EVM wallet packages (for custom wallet config like WalletConnect)
-npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
+# EVM wallets
+npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect \
+            @binance/w3w-blocknative-connector wagmi
 
-# Optional: Solana wallet packages (for custom Solana wallet config)
-npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
+# Solana wallets
+npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets \
+            @solana-mobile/wallet-adapter-mobile
 ```
 
-### Required Dependencies Summary
+| Package                                | Purpose                                      |
+| -------------------------------------- | -------------------------------------------- |
+| `@web3-onboard/injected-wallets`       | MetaMask, Rabby, Coinbase, etc.              |
+| `@web3-onboard/walletconnect`          | WalletConnect (mobile / multi-platform)      |
+| `@binance/w3w-blocknative-connector`   | Binance Web3 Wallet                          |
+| `wagmi`                                | EVM connectors (`injected`, `walletConnect`) |
+| `@solana/wallet-adapter-base`          | Solana adapter base + network enum           |
+| `@solana/wallet-adapter-wallets`       | Phantom, Solflare, Ledger adapters           |
+| `@solana-mobile/wallet-adapter-mobile` | Solana Mobile Wallet Adapter                 |
 
-| Package                          | Purpose                                | Required For                    |
-| -------------------------------- | -------------------------------------- | ------------------------------- |
-| `@web3-onboard/injected-wallets` | MetaMask, Coinbase Wallet, Rabby, etc. | EVM wallet connection           |
-| `@web3-onboard/walletconnect`    | WalletConnect protocol                 | Mobile & multi-platform wallets |
-| `@solana/wallet-adapter-base`    | Solana wallet adapter base             | All Solana wallets              |
-| `@solana/wallet-adapter-wallets` | Phantom, Solflare, Ledger adapters     | Solana wallet connection        |
+## Standard Connector
 
-## Architecture
+### 1. Wallet Connector Provider
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    WalletConnectorProvider                   │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │                   SolanaProvider                      │   │
-│  │  (ConnectionProvider + WalletProvider + ModalProvider)│   │
-│  │  ┌───────────────────────────────────────────────┐    │   │
-│  │  │                   InitEvm                     │    │   │
-│  │  │  (Web3OnboardProvider for EVM wallets)        │    │   │
-│  │  │  ┌─────────────────────────────────────────┐  │    │   │
-│  │  │  │                  Main                   │  │    │   │
-│  │  │  │  (WalletConnectorContext - unified API) │  │    │   │
-│  │  │  │  ┌─────────────────────────────────┐    │  │    │   │
-│  │  │  │  │         Your App                │    │  │    │   │
-│  │  │  │  └─────────────────────────────────┘    │  │    │   │
-│  │  │  └─────────────────────────────────────────┘  │    │   │
-│  │  └───────────────────────────────────────────────┘    │   │
-│  └───────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────┘
-```
-
-## Basic Setup
-
-**IMPORTANT**: The `networkId` must be consistent between `WalletConnectorProvider` (Solana network) and `OrderlyAppProvider`.
-
-### 1. WalletConnectorProvider
-
-Wrap your app with the `WalletConnectorProvider`.
-
-**Minimal Setup (uses defaults):**
+Wrap `OrderlyAppProvider` with `WalletConnectorProvider`, passing both initial configs:
 
 ```tsx
-import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
-import { OrderlyAppProvider } from '@orderly.network/react-app';
-import type { NetworkId } from '@orderly.network/types';
-
-function App() {
-  const networkId: NetworkId = 'mainnet';
-
-  return (
-    <WalletConnectorProvider>
-      <OrderlyAppProvider
-        brokerId="your_broker_id"
-        brokerName="Your DEX Name"
-        networkId={networkId}
-      >
-        <YourApp />
-      </OrderlyAppProvider>
-    </WalletConnectorProvider>
-  );
-}
-```
-
-**Custom Setup (explicit wallet configuration):**
-
-```tsx
+// app/components/orderlyProvider/walletConnector.tsx
+import { ReactNode } from 'react';
 import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { OrderlyAppProvider } from '@orderly.network/react-app';
 import type { NetworkId } from '@orderly.network/types';
+import { getEvmInitialConfig, getSolanaWallets } from '@/utils/walletConfig';
 
-function App() {
-  const networkId: NetworkId = 'mainnet';
+const WalletConnector = ({
+  children,
+  networkId,
+  disableEvm,
+  disableSolana,
+  projectId,
+  appName,
+}: {
+  children: ReactNode;
+  networkId: NetworkId;
+  disableEvm?: boolean; // from your config
+  disableSolana?: boolean; // from your config
+  projectId?: string; // WalletConnect project id (see below)
+  appName?: string;
+}) => (
+  <WalletConnectorProvider
+    evmInitial={disableEvm ? undefined : getEvmInitialConfig(projectId, appName)}
+    solanaInitial={
+      disableSolana
+        ? undefined
+        : {
+            network:
+              networkId === 'mainnet' ? WalletAdapterNetwork.Mainnet : WalletAdapterNetwork.Devnet,
+            wallets: getSolanaWallets(networkId),
+          }
+    }
+  >
+    {children}
+  </WalletConnectorProvider>
+);
 
-  return (
-    <WalletConnectorProvider
-      solanaInitial={{
-        network:
-          networkId === 'mainnet' ? WalletAdapterNetwork.Mainnet : WalletAdapterNetwork.Devnet,
-        wallets: getSolanaWallets(),
-      }}
-      evmInitial={{
-        options: {
-          wallets: getEvmWallets(),
-          appMetadata: {
-            name: 'My DEX',
-            description: 'Decentralized Exchange',
-          },
-        },
-      }}
-    >
-      <OrderlyAppProvider
-        brokerId="your_broker_id"
-        brokerName="Your DEX Name"
-        networkId={networkId}
-      >
-        <YourApp />
-      </OrderlyAppProvider>
-    </WalletConnectorProvider>
-  );
-}
+export default WalletConnector;
 ```
 
-### 2. Configure EVM Wallets
+> `networkId` must be consistent between `WalletConnectorProvider` (Solana network) and `OrderlyAppProvider`. The reference provider derives both from the same `getNetworkId()`.
+
+### 2. EVM Wallet Configuration
+
+The template builds EVM connectors in **two** layers: `getEvmConnectors()` (wagmi `CreateConnectorFn[]`, used by the Privy path) and `getOnboardEvmWallets()` (Web3-Onboard modules, used by `getEvmInitialConfig()` for the standard connector).
 
 ```tsx
+// app/utils/walletConfig.ts (excerpt)
+import { CreateConnectorFn } from 'wagmi';
+import { injected, walletConnect } from 'wagmi/connectors';
 import injectedOnboard from '@web3-onboard/injected-wallets';
 import walletConnectOnboard from '@web3-onboard/walletconnect';
 import binanceWallet from '@binance/w3w-blocknative-connector';
 
-export function getEvmWallets() {
-  const walletConnectProjectId = 'YOUR_WALLETCONNECT_PROJECT_ID';
+// wagmi connectors (Privy path)
+export const getEvmConnectors = (
+  projectId?: string,
+  appName = 'Orderly App'
+): CreateConnectorFn[] => {
+  const connectors: CreateConnectorFn[] = [injected()];
+  if (projectId && typeof window !== 'undefined') {
+    connectors.push(
+      walletConnect({
+        projectId,
+        showQrModal: true,
+        metadata: {
+          name: appName,
+          description: appName,
+          url: window.location.origin,
+          icons: [`${window.location.origin}/favicon.webp`],
+        },
+      })
+    );
+  }
+  return connectors;
+};
 
+// Web3-Onboard modules (standard connector path)
+export const getOnboardEvmWallets = (projectId?: string) => {
+  if (!projectId || typeof window === 'undefined') return [];
   return [
-    // Injected wallets (MetaMask, Rabby, Coinbase, etc.)
     injectedOnboard(),
-
-    // Binance Web3 Wallet
     binanceWallet({ options: { lng: 'en' } }),
-
-    // WalletConnect (for mobile wallets)
     walletConnectOnboard({
-      projectId: walletConnectProjectId,
+      projectId,
       qrModalOptions: { themeMode: 'dark' },
       dappUrl: window.location.origin,
     }),
   ];
-}
+};
+
+// evmInitial shape: { options: { wallets, appMetadata } } — undefined if no projectId
+export const getEvmInitialConfig = (projectId?: string, appName = 'Orderly App') => {
+  const wallets = getOnboardEvmWallets(projectId);
+  return wallets.length > 0
+    ? { options: { wallets, appMetadata: { name: appName, description: appName } } }
+    : undefined;
+};
 ```
 
-### 3. Configure Solana Wallets
+> Source your **WalletConnect project id** however your app prefers (the reference template reads it from `.env` as `import.meta.env.VITE_WALLETCONNECT_PROJECT_ID`). Get one at https://cloud.walletconnect.com. Without it, only the injected browser wallet is available.
+
+### 3. Solana Wallet Configuration
 
 ```tsx
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+// app/utils/walletConfig.ts (excerpt)
 import {
+  WalletAdapterNetwork,
+  WalletError,
+  WalletNotReadyError,
+  Adapter,
+} from '@solana/wallet-adapter-base';
+import {
+  LedgerWalletAdapter,
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  LedgerWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
+import {
+  createDefaultAddressSelector,
+  createDefaultAuthorizationResultCache,
+  SolanaMobileWalletAdapter,
+} from '@solana-mobile/wallet-adapter-mobile';
+import type { NetworkId } from '@orderly.network/types';
 
-export function getSolanaWallets(networkId: 'mainnet' | 'testnet') {
-  return [new PhantomWalletAdapter(), new SolflareWalletAdapter(), new LedgerWalletAdapter()];
-}
+export const getSolanaWallets = (networkId: NetworkId) => {
+  if (typeof window === 'undefined') return [];
+  return [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+    new LedgerWalletAdapter(),
+    new SolanaMobileWalletAdapter({
+      addressSelector: createDefaultAddressSelector(),
+      appIdentity: { uri: `${location.protocol}//${location.host}` },
+      authorizationResultCache: createDefaultAuthorizationResultCache(),
+      chain: networkId === 'mainnet' ? WalletAdapterNetwork.Mainnet : WalletAdapterNetwork.Devnet,
+      onWalletNotFound: () => Promise.reject(new WalletNotReadyError('wallet not ready')),
+    }),
+  ];
+};
+
+export const getSolanaConfig = (networkId: NetworkId) => ({
+  wallets: getSolanaWallets(networkId),
+  onError: (error: WalletError, adapter?: Adapter) => {
+    console.log(error, adapter);
+  },
+});
 ```
 
-## Using Wallet Connection
+> `SolanaMobileWalletAdapter` (from `@solana-mobile/wallet-adapter-mobile`) is required for Solana Mobile / Saga device support. Omitting it means mobile Solana users cannot connect.
 
-### Access Wallet Context
+## Accessing Wallet State
 
-The SDK provides a unified `WalletConnectorContext`:
+Use the `useWalletConnector()` hook. Its return is **flat** (top-level `connect`, `disconnect`, `setChain`, etc.), not nested under `wallet`.
 
 ```tsx
-import { useContext } from 'react';
-import { WalletConnectorContext } from '@orderly.network/hooks';
+import { useWalletConnector } from '@orderly.network/hooks';
 
 function WalletStatus() {
   const {
-    connect, // Connect wallet function
-    disconnect, // Disconnect wallet function
-    connecting, // Boolean: connection in progress
-    wallet, // Connected wallet info
-    connectedChain, // Current chain info
-    setChain, // Switch chain function
+    connect, // (options?) => Promise<WalletState[]>
+    disconnect, // (options)  => Promise<any[]>
+    connecting, // boolean — connection in progress
+    wallet, // WalletState | null
+    connectedChain, // ConnectedChain | null
+    setChain, // ({ chainId }) => Promise<any>
+    chains, // available chains
+    settingChain, // boolean
     namespace, // "evm" | "solana" | null
-  } = useContext(WalletConnectorContext);
+  } = useWalletConnector();
 
   return (
     <div>
@@ -217,69 +247,65 @@ function WalletStatus() {
         <>
           <p>Connected: {wallet.accounts[0].address}</p>
           <p>Chain: {connectedChain?.id}</p>
-          <button onClick={disconnect}>Disconnect</button>
+          <button onClick={() => disconnect({})}>Disconnect</button>
         </>
       ) : (
-        <button onClick={() => connect({ chainId: 42161 })}>Connect Wallet</button>
+        <button disabled={connecting} onClick={() => connect({ chainId: 42161 })}>
+          {connecting ? 'Connecting…' : 'Connect Wallet'}
+        </button>
       )}
     </div>
   );
 }
 ```
 
-### Connect to Specific Chain
-
-```tsx
-const { connect } = useContext(WalletConnectorContext);
-
-// Connect to EVM chain (Arbitrum)
-await connect({ chainId: 42161 });
-
-// Connect to Solana
-await connect({ chainId: 900900900 }); // Solana mainnet
-```
-
 ### Switch Chains
 
 ```tsx
-const { setChain, connectedChain } = useContext(WalletConnectorContext);
-
-// Switch to Optimism
-await setChain({ chainId: '0xa' }); // Hex format for EVM
-
-// Switch to Base
-await setChain({ chainId: '0x2105' });
+const { setChain } = useWalletConnector();
+await setChain({ chainId: 10 }); // Optimism
+await setChain({ chainId: 8453 }); // Base
 ```
 
 ## Account State Machine
 
-After wallet connection, users need to complete Orderly account setup:
+After a wallet connects, the user must complete Orderly account setup (create an account key, enable trading). Track it with `useAccount()`, whose `state.status` is an `AccountStatusEnum`.
 
 ```
-NotConnected (0) → Connected (1) → NotSignedIn (2) → SignedIn (3)
-                                              ↓
-                                        EnableTrading (5)
+NotConnected(0) → Connected(1) → NotSignedIn(2) → SignedIn(3) → EnableTrading(5)
+                                     │
+                                     └→ DisabledTrading(4)
+EnableTradingWithoutConnected(-1) — trading enabled without an explicit wallet
 ```
 
-### Using useAccount Hook
+| Status (`AccountStatusEnum`)    | Value | Meaning                                  |
+| ------------------------------- | ----- | ---------------------------------------- |
+| `EnableTradingWithoutConnected` | -1    | Trading enabled without wallet connected |
+| `NotConnected`                  | 0     | No wallet connected                      |
+| `Connected`                     | 1     | Wallet connected, no Orderly account     |
+| `NotSignedIn`                   | 2     | Account exists, not signed in            |
+| `SignedIn`                      | 3     | Signed in to Orderly                     |
+| `DisabledTrading`               | 4     | Trading disabled                         |
+| `EnableTrading`                 | 5     | Trading enabled                          |
+
+> `AccountStatusEnum` is exported from **`@orderly.network/types`**, not `@orderly.network/hooks`.
 
 ```tsx
-import { useAccount, AccountStatusEnum } from '@orderly.network/hooks';
+import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 function AccountStatus() {
-  const { account, state, createOrderlyKey, createAccount, disconnect } = useAccount();
+  const { account, state, createOrderlyKey, createAccount } = useAccount();
 
   switch (state.status) {
     case AccountStatusEnum.NotConnected:
       return <ConnectWalletButton />;
-
     case AccountStatusEnum.Connected:
       return <button onClick={() => createAccount()}>Create Orderly Account</button>;
-
     case AccountStatusEnum.NotSignedIn:
       return <button onClick={() => createOrderlyKey()}>Enable Trading</button>;
-
     case AccountStatusEnum.SignedIn:
+    case AccountStatusEnum.EnableTrading:
       return <TradingInterface />;
   }
 }
@@ -287,210 +313,163 @@ function AccountStatus() {
 
 ## UI Components for Wallet Connection
 
-### WalletConnectorWidget
+### Connect Button / Modal
 
-Pre-built wallet connection UI:
+The SDK exposes a connect modal through the notification/modal system:
 
 ```tsx
-import { WalletConnectorWidget, WalletConnectorModalId } from '@orderly.network/ui-connector';
 import { modal } from '@orderly.network/ui';
+import { WalletConnectorModalId } from '@orderly.network/ui-connector';
 
-// Show wallet connect modal
 function ConnectButton() {
   return <button onClick={() => modal.show(WalletConnectorModalId)}>Connect Wallet</button>;
 }
 ```
 
+A pre-styled button is also available as `ConnectWalletButton` from `@orderly.network/ui-connector`.
+
 ### AuthGuard
 
-Wrap content that requires authentication:
+Wrap content that requires an authenticated, trading-enabled account:
 
 ```tsx
 import { AuthGuard } from '@orderly.network/ui-connector';
 
-function TradingPage() {
+function ProtectedArea() {
   return (
     <AuthGuard fallback={<ConnectPrompt />}>
-      <OrderEntry symbol="PERP_ETH_USDC" />
+      <TradingUI />
     </AuthGuard>
   );
 }
 ```
 
-### useAuthGuard Hook
-
-```tsx
-import { useAuthGuard } from '@orderly.network/ui-connector';
-
-function TradeButton() {
-  const { isAuthenticated, triggerAuth } = useAuthGuard();
-
-  const handleClick = () => {
-    if (!isAuthenticated) {
-      triggerAuth();
-      return;
-    }
-    // Proceed with trade
-  };
-
-  return <button onClick={handleClick}>Trade</button>;
-}
-```
-
 ## Supported Chains
 
-### EVM Mainnet Chains
+### EVM Mainnet
 
-| Chain     | Chain ID | Network |
-| --------- | -------- | ------- |
-| Ethereum  | 1        | mainnet |
-| Arbitrum  | 42161    | mainnet |
-| Optimism  | 10       | mainnet |
-| Base      | 8453     | mainnet |
-| Polygon   | 137      | mainnet |
-| BSC       | 56       | mainnet |
-| Avalanche | 43114    | mainnet |
-| Mantle    | 5000     | mainnet |
-| SEI       | 1329     | mainnet |
+| Chain    | Chain ID |
+| -------- | -------- |
+| Arbitrum | 42161    |
+| Optimism | 10       |
+| Base     | 8453     |
+| Ethereum | 1        |
 
-### EVM Testnet Chains
+### EVM Testnet
 
-| Chain            | Chain ID | Network |
-| ---------------- | -------- | ------- |
-| Arbitrum Sepolia | 421614   | testnet |
-| BSC Testnet      | 97       | testnet |
-| Monad Testnet    | 10143    | testnet |
+| Chain            | Chain ID |
+| ---------------- | -------- |
+| Arbitrum Sepolia | 421614   |
+| Base Sepolia     | 84532    |
 
 ### Solana
 
-| Network | Chain ID (Internal) |
-| ------- | ------------------- |
-| Mainnet | 900900900           |
-| Devnet  | 901901901           |
+| Network | Internal ID |
+| ------- | ----------- |
+| Mainnet | 1399811149  |
+| Devnet  | (devnet)    |
 
 ## Chain Filtering
 
-Restrict which chains users can connect to:
+Restrict which chains users can switch between. `chainFilter` is keyed by network, each value an array of `{ id }`:
 
 ```tsx
 <OrderlyAppProvider
   brokerId="your_broker_id"
   networkId="mainnet"
   chainFilter={{
-    mainnet: [
-      { id: 42161 }, // Arbitrum only
-      { id: 10 },    // Optimism
-    ],
-    testnet: [
-      { id: 421614 }, // Arbitrum Sepolia
-    ],
+    mainnet: [{ id: 42161 }, { id: 10 }],
+    testnet: [{ id: 421614 }],
   }}
+  defaultChain={{ mainnet: { id: 42161 } }}
 >
 ```
 
+In the reference template this is built from `VITE_ORDERLY_MAINNET_CHAINS` / `VITE_ORDERLY_TESTNET_CHAINS` / `VITE_DEFAULT_CHAIN` (see `orderly-sdk-dex-architecture`).
+
 ## Handling Chain Changes
+
+When the user switches between a mainnet chain and a testnet chain, you must flip `networkId` and reload so the SDK rebinds to the correct environment:
 
 ```tsx
 <OrderlyAppProvider
   brokerId="your_broker_id"
-  networkId="mainnet"
-  onChainChanged={(chainId, { isTestnet }) => {
-    console.log(`Switched to chain ${chainId}`);
-
-    // Reload if switching between mainnet/testnet
-    if (isTestnet && networkId === "mainnet") {
-      localStorage.setItem("network", "testnet");
-      window.location.reload();
+  networkId={networkId}
+  onChainChanged={(_chainId, { isTestnet }) => {
+    const current = getNetworkId();
+    if ((isTestnet && current === 'mainnet') ||
+        (!isTestnet && current === 'testnet')) {
+      localStorage.setItem('orderly_network_id', isTestnet ? 'testnet' : 'mainnet');
+      setTimeout(() => window.location.reload(), 100);
     }
   }}
 >
 ```
 
-## Privy Integration (Alternative)
+## Privy Integration (Social Login)
 
-For social login support, use Privy:
+Install the Privy connector and the Privy SDK (`@privy-io/cross-app-connect`, **not** the older `@privy-io/react-auth`):
 
 ```bash
-npm install @orderly.network/wallet-connector-privy
+npm install @orderly.network/wallet-connector-privy @privy-io/cross-app-connect
 ```
+
+The Privy provider is **`WalletConnectorPrivyProvider`** (not `WalletConnectorPrivy`). It takes `network`, `termsOfUse`, `wagmiConfig`, `solanaConfig`, `privyConfig`, and an optional `abstractConfig`.
 
 ```tsx
-import { WalletConnectorPrivy } from "@orderly.network/wallet-connector-privy";
+// app/components/orderlyProvider/privyConnector.tsx
+import { ReactNode } from 'react';
+import { WalletConnectorPrivyProvider, Network } from '@orderly.network/wallet-connector-privy';
+import { QueryClient } from '@tanstack/query-core';
+import type { NetworkId } from '@orderly.network/types';
+import { getEvmConnectors, getSolanaConfig } from '@/utils/walletConfig';
 
-<WalletConnectorPrivy
-  appId="YOUR_PRIVY_APP_ID"
-  loginMethods={["email", "google", "twitter"]}
->
-  <OrderlyAppProvider ...>
-    <App />
-  </OrderlyAppProvider>
-</WalletConnectorPrivy>
+type LoginMethod = 'email' | 'passkey' | 'twitter' | 'google';
+
+type PrivyConnectorProps = {
+  children: ReactNode;
+  networkId: NetworkId;
+  appId: string;                                  // your Privy app id (required)
+  loginMethods?: LoginMethod[];                   // default ['email']
+  termsOfUse?: string;
+  disableEvm?: boolean;
+  disableSolana?: boolean;
+  enableAbstract?: boolean;
+  // plus projectId / appName if you enable EVM (see getEvmConnectors)
+};
+
+const PrivyConnector = ({
+  children, networkId, appId,
+  loginMethods = ['email'], termsOfUse,
+  disableEvm, disableSolana, enableAbstract,
+}: PrivyConnectorProps) => (
+  <WalletConnectorPrivyProvider
+    network={networkId === 'mainnet' ? Network.mainnet : Network.testnet}
+    termsOfUse={termsOfUse}
+    wagmiConfig={disableEvm ? undefined : { connectors: getEvmConnectors(/* projectId */, /* appName */) }}
+    solanaConfig={disableSolana ? undefined : getSolanaConfig(networkId)}
+    privyConfig={{
+      config: { appearance: { showWalletLoginFirst: false }, loginMethods },
+      appid: appId,
+    }}
+    abstractConfig={enableAbstract ? { queryClient: new QueryClient() } : undefined}
+  >
+    {children}
+  </WalletConnectorPrivyProvider>
+);
+
+export default PrivyConnector;
 ```
 
-## Error Handling
-
-```tsx
-import { useEventEmitter } from '@orderly.network/hooks';
-
-function WalletErrorHandler() {
-  const ee = useEventEmitter();
-
-  useEffect(() => {
-    const handleError = (error: { message: string }) => {
-      toast.error(error.message);
-    };
-
-    ee.on('wallet:connect-error', handleError);
-
-    return () => {
-      ee.off('wallet:connect-error', handleError);
-    };
-  }, [ee]);
-
-  return null;
-}
-```
+> The provider props (`appId`, `loginMethods`, etc.) come from your config — the reference template sources them from `.env` (`VITE_PRIVY_APP_ID`, `VITE_PRIVY_LOGIN_METHODS`, …). If no Privy app id is configured, use the standard `WalletConnector` instead. Login methods default to `email`.
 
 ## Best Practices
 
-### 1. Check Wallet Connection Before Actions
-
-```tsx
-const { wallet } = useContext(WalletConnectorContext);
-if (!wallet) {
-  modal.show(WalletConnectorModalId);
-  return;
-}
-```
-
-### 2. Use AuthGuard for Protected Content
-
-```tsx
-<AuthGuard>
-  <ProtectedTradingUI />
-</AuthGuard>
-```
-
-### 3. Handle Network Mismatches
-
-```tsx
-const { connectedChain } = useContext(WalletConnectorContext);
-const expectedChainId = networkId === 'mainnet' ? 42161 : 421614;
-
-if (connectedChain?.id !== expectedChainId) {
-  return <SwitchNetworkPrompt />;
-}
-```
-
-### 4. Persist Network Selection
-
-```tsx
-const NETWORK_KEY = 'orderly_network_id';
-
-function getNetworkId(): NetworkId {
-  return (localStorage.getItem(NETWORK_KEY) as NetworkId) || 'mainnet';
-}
-```
+1. **Source your WalletConnect project id from config**, never hardcode it.
+2. **Derive `networkId` once** (e.g. `getNetworkId()`) and feed it to both the wallet connector and `OrderlyAppProvider`.
+3. **Persist network selection** in `localStorage` (`orderly_network_id`) and reload on mainnet↔testnet switches.
+4. **Include `SolanaMobileWalletAdapter`** if you support Solana Mobile devices.
+5. **Select Privy vs standard connector at runtime** (by whether a Privy app id is configured), not at build time.
 
 ## Related Skills
 

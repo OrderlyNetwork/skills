@@ -1,11 +1,13 @@
 ---
 name: orderly-ui-components
-description: Build trading interfaces using pre-built React components - OrderEntry, Positions, TradingPage, WalletConnect, Sheets, Tables
+description: Build trading interfaces using pre-built React components - OrderEntry, Positions, TradingPage, Scaffold, Tables, Modals, Sheets
 ---
 
 # Orderly Network: UI Components
 
-This skill covers building trading interfaces using Orderly's pre-built React components from `@orderly.network/react`.
+Build trading interfaces with Orderly's pre-built React components. The SDK ships a base component library (`@orderly.network/ui`), granular trading widgets (`ui-order-entry`, `ui-positions`, …), high-level feature pages (`trading`, `portfolio`, `markets`), and an app scaffold (`ui-scaffold`).
+
+> **Imports matter.** Components live in **specific** packages — do not import everything from `@orderly.network/react` (that package does not exist). Use `@orderly.network/react-app` for the provider, `@orderly.network/ui` for base components, and the feature package for page-level widgets. See the package table below.
 
 ## When to Use
 
@@ -16,557 +18,258 @@ This skill covers building trading interfaces using Orderly's pre-built React co
 ## Prerequisites
 
 - React 18+
-- `@orderly.network/react` installed
-- Tailwind CSS (recommended for styling)
+- `@orderly.network/react-app`, `@orderly.network/ui` installed
+- `OrderlyAppProvider` wrapping your app
+- Tailwind CSS configured (content glob on `app/`)
 
-## Installation
+## Where Components Live
 
-```bash
-npm install @orderly.network/react @orderly.network/hooks @orderly.network/types
+| Component                 | Package                           | Notes                                                   |
+| ------------------------- | --------------------------------- | ------------------------------------------------------- |
+| `OrderlyAppProvider`      | `@orderly.network/react-app`      | The app provider (the only export you need from here)   |
+| `TradingPage`             | `@orderly.network/trading`        | Full trading page (chart + orderbook + order entry)     |
+| `OrderBook`, `LastTrades` | `@orderly.network/trading`        | Orderbook + recent trades                               |
+| `OrderEntryWidget`        | `@orderly.network/ui-order-entry` | Order entry form (`OrderEntry` is the headless variant) |
+| `PositionsWidget`         | `@orderly.network/ui-positions`   | Positions table                                         |
+| `TradingView`             | `@orderly.network/ui`             | Chart wrapper                                           |
+| `Table`, `Modal`, `Sheet` | `@orderly.network/ui`             | Base primitives                                         |
+| `Scaffold`                | `@orderly.network/ui-scaffold`    | App layout (nav, footer, account menu)                  |
+| `AuthGuard`               | `@orderly.network/ui-connector`   | Gate content behind auth/trading                        |
 
-# Or with yarn
-yarn add @orderly.network/react @orderly.network/hooks @orderly.network/types
-```
+> `@orderly.network/ui-orderbook` and `@orderly.network/ui-chart` do **not** exist. Orderbook lives in `@orderly.network/trading`; the chart is `TradingView` in `@orderly.network/ui`.
 
-## Core Providers
+## Provider Hierarchy
 
-Wrap your app with the required providers:
+`WalletConnectorProvider` (or Privy) **wraps** `OrderlyAppProvider`, not the other way around. There is no `TradingPageProvider` or `SymbolProvider` to add — `TradingPage` manages its own symbol context internally.
 
-```typescript
-import {
-  OrderlyAppProvider,
-  TradingPageProvider,
-  SymbolProvider,
-  WalletConnector
-} from '@orderly.network/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const queryClient = new QueryClient();
+```tsx
+import { OrderlyAppProvider } from '@orderly.network/react-app';
+import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <OrderlyAppProvider
-        brokerId="woofi_dex"
-        chainFilter={[42161, 421614]}
-      >
-        <SymbolProvider>
-          <TradingPageProvider>
-            <Layout>
-              <WalletConnector />
-              <TradingPage />
-            </Layout>
-          </TradingPageProvider>
-        </SymbolProvider>
+    <WalletConnectorProvider evmInitial={…} solanaInitial={…}>
+      <OrderlyAppProvider brokerId="your_broker_id" networkId="mainnet">
+        <YourApp />
       </OrderlyAppProvider>
-    </QueryClientProvider>
+    </WalletConnectorProvider>
   );
 }
 ```
 
----
+> Do not add `QueryClientProvider`, `ModalProvider`, or `TooltipProvider` yourself — `OrderlyAppProvider` sets those up internally.
 
-## Order Entry Component
+## Trading Page (recommended)
 
-### Basic Order Entry
+For a complete trading interface, use `TradingPage` — it composes the chart, orderbook, order entry, and positions for you. This is what the reference template uses; hand-assembling the widgets below is only for custom layouts.
 
-```typescript
-import { OrderEntry, OrderEntryProvider } from '@orderly.network/ui-order-entry';
-import { useOrderEntry } from '@orderly.network/hooks';
+```tsx
+import { TradingPage } from '@orderly.network/trading';
 
-function OrderEntryContainer() {
-  const { onSubmit } = useOrderEntry();
-
-  const handleSubmit = async (params: any) => {
-    try {
-      await onSubmit(params);
-      console.log('Order submitted');
-    } catch (e) {
-      console.error('Order failed', e);
-    }
-  };
-
-  return (
-    <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-      <OrderEntry
-        onSubmit={handleSubmit}
-        defaultTab="limit"
-        hideMarket={false}
-      />
-    </div>
-  );
-}
-
-export function OrderEntryWidget() {
-  return (
-    <OrderEntryProvider symbol="PERP_BTC_USDC">
-      <OrderEntryContainer />
-    </OrderEntryProvider>
-  );
+function PerpSymbol({ symbol }: { symbol: string }) {
+  return <TradingPage symbol={symbol} />;
 }
 ```
 
-### Order Entry Props
+`TradingPage` accepts a `tradingViewConfig` (chart), `sharePnLConfig`, and layout options. See `orderly-sdk-page-components`.
 
-```typescript
-interface OrderEntryProps {
-  onSubmit?: (params: OrderParams) => Promise<void>;
-  defaultTab?: 'limit' | 'market';
-  hideMarket?: boolean;
-  hideLimit?: boolean;
-  showLeverage?: boolean;
-  className?: string;
-}
-```
+## Order Entry
 
----
+`OrderEntryWidget` is the self-contained widget (pass `symbol`). `OrderEntry` is the presentational component that takes the script return values (use only for advanced headless wiring).
 
-## Positions Component
+```tsx
+import { OrderEntryWidget } from '@orderly.network/ui-order-entry';
 
-### Basic Positions Table
-
-```typescript
-import { Positions } from '@orderly.network/ui-positions';
-
-export function PositionsWidget() {
-  const handleSymbolClick = (symbol: string) => {
-    console.log('Navigate to:', symbol);
-  };
-
+function OrderEntryPanel({ symbol }: { symbol: string }) {
   return (
-    <div className="w-full">
-      <Positions
-        filter={{ symbol: 'PERP_ETH_USDC' }}  // Optional filter
-        onSymbolClick={handleSymbolClick}
-        showPagination={true}
-      />
+    <div className="rounded-lg p-4">
+      <OrderEntryWidget symbol={symbol} />
     </div>
   );
 }
 ```
 
-### Positions Props
+> There is no `OrderEntryProvider`. Pass the `symbol` prop directly.
 
-```typescript
-interface PositionsProps {
-  filter?: {
-    symbol?: string;
-    side?: 'BUY' | 'SELL';
-  };
-  onSymbolClick?: (symbol: string) => void;
-  showPagination?: boolean;
-  pageSize?: number;
-  className?: string;
-}
-```
+## Positions
 
----
+```tsx
+import { PositionsWidget } from '@orderly.network/ui-positions';
 
-## Orderbook Component
-
-```typescript
-import { Orderbook, OrderbookProvider } from '@orderly.network/ui-orderbook';
-
-export function OrderbookWidget({ symbol }: { symbol: string }) {
+function PositionsPanel({ symbol, onSymbolChange }: {
+  symbol?: string;
+  onSymbolChange?: (s: API.Symbol) => void;
+}) {
   return (
-    <OrderbookProvider symbol={symbol}>
-      <Orderbook
-        level={10}           // Number of levels to show
-        showTotal={true}     // Show total column
-        onItemClick={(price, side) => {
-          console.log('Price clicked:', price, side);
-        }}
-      />
-    </OrderbookProvider>
-  );
-}
-```
-
----
-
-## Wallet Connect Component
-
-### Basic Wallet Connect
-
-```typescript
-import { WalletConnect } from '@orderly.network/react';
-
-export function Header() {
-  return (
-    <header className="flex justify-between items-center p-4">
-      <div className="logo">My DEX</div>
-      <WalletConnect />
-    </header>
-  );
-}
-```
-
-### Custom Wallet Button
-
-```typescript
-import { useAccount, useWalletConnector } from '@orderly.network/hooks';
-
-export function CustomWalletButton() {
-  const { account, state } = useAccount();
-  const wallet = useWalletConnector();
-
-  if (state.status !== 'connected') {
-    return (
-      <button
-        onClick={() => wallet.connect()}
-        className="btn-primary"
-      >
-        Connect Wallet
-      </button>
-    );
-  }
-
-  return (
-    <div className="wallet-menu">
-      <span>{account.address?.slice(0, 6)}...{account.address?.slice(-4)}</span>
-      <button onClick={() => wallet.disconnect()}>
-        Disconnect
-      </button>
-    </div>
-  );
-}
-```
-
----
-
-## Chart Components
-
-### TradingView Widget
-
-```typescript
-import { TradingView } from '@orderly.network/ui-chart';
-
-export function ChartWidget({ symbol }: { symbol: string }) {
-  return (
-    <div className="h-[500px]">
-      <TradingView
-        symbol={symbol}
-        interval="1h"
-        theme="dark"
-        autosize={true}
-      />
-    </div>
-  );
-}
-```
-
-### Lightweight Charts
-
-```typescript
-import { LightweightChart } from '@orderly.network/ui-chart';
-
-export function SimpleChart({ symbol }: { symbol: string }) {
-  return (
-    <div className="h-[400px]">
-      <LightweightChart
-        symbol={symbol}
-        interval="15m"
-        chartType="candlestick"
-      />
-    </div>
-  );
-}
-```
-
----
-
-## Data Table Component
-
-### Generic Table
-
-```typescript
-import { Table } from '@orderly.network/ui';
-
-type TradeRow = {
-  id: string;
-  price: number;
-  size: number;
-  time: string;
-  side: 'BUY' | 'SELL';
-};
-
-export function TradesTable({ data }: { data: TradeRow[] }) {
-  return (
-    <Table<TradeRow>
-      dataSource={data}
-      columns={[
-        {
-          title: 'Price',
-          dataIndex: 'price',
-          render: (value, record) => (
-            <span className={record.side === 'BUY' ? 'text-green-500' : 'text-red-500'}>
-              {value.toFixed(2)}
-            </span>
-          ),
-        },
-        {
-          title: 'Size',
-          dataIndex: 'size',
-          render: (value) => value.toFixed(4),
-        },
-        {
-          title: 'Time',
-          dataIndex: 'time',
-        },
-      ]}
-      rowKey="id"
-      pagination={{ pageSize: 20 }}
+    <PositionsWidget
+      symbol={symbol}            // optional — filter to one symbol
+      onSymbolChange={onSymbolChange}
+      pnlNotionalDecimalPrecision={2}
+      sharePnLConfig={…}         // optional PnL-share config
     />
   );
 }
 ```
 
----
+For the full portfolio (positions + history + orders + assets), prefer `OverviewModule`/`PositionsModule` from `@orderly.network/portfolio` (see `orderly-sdk-page-components`).
 
-## Sheet (Drawer) Component
+## Orderbook & Trades
 
-```typescript
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetFooter } from '@orderly.network/ui';
+```tsx
+import { OrderBook, LastTrades } from '@orderly.network/trading';
 
-export function OrderDetailsSheet({ order }: { order: Order }) {
+function MarketData({ symbol }: { symbol: string }) {
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <button className="btn-secondary">View Details</button>
-      </SheetTrigger>
-      <SheetContent side="right">
-        <SheetHeader>
-          <h2>Order Details</h2>
-        </SheetHeader>
-        <div className="py-4">
-          <div className="grid grid-cols-2 gap-2">
-            <span>Symbol:</span>
-            <span>{order.symbol}</span>
-            <span>Side:</span>
-            <span>{order.side}</span>
-            <span>Price:</span>
-            <span>{order.price}</span>
-            <span>Quantity:</span>
-            <span>{order.order_qty}</span>
-            <span>Status:</span>
-            <span>{order.status}</span>
-          </div>
-        </div>
-        <SheetFooter>
-          <button className="btn-primary">Close Position</button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+    <>
+      <OrderBook symbol={symbol} level={15} />
+      <LastTrades symbol={symbol} />
+    </>
   );
 }
 ```
 
----
+## Chart
 
-## Modal Component
+```tsx
+import { TradingView } from '@orderly.network/ui';
 
-```typescript
-import { Modal, ModalTrigger, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@orderly.network/ui';
-
-export function ConfirmOrderModal({ order, onConfirm }: { order: Order; onConfirm: () => void }) {
+function ChartPanel({ symbol }: { symbol: string }) {
   return (
-    <Modal>
-      <ModalTrigger asChild>
-        <button className="btn-primary">Place Order</button>
-      </ModalTrigger>
-      <ModalContent>
-        <ModalHeader>
-          <h2>Confirm Order</h2>
-        </ModalHeader>
-        <ModalBody>
-          <p>Are you sure you want to place this order?</p>
-          <div className="order-summary">
-            <p>{order.side} {order.quantity} {order.symbol} @ {order.price}</p>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <button className="btn-secondary">Cancel</button>
-          <button className="btn-primary" onClick={onConfirm}>Confirm</button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  );
-}
-```
-
----
-
-## Empty State Component
-
-```typescript
-import { NoData } from '@orderly.network/ui';
-
-export function EmptyOrders() {
-  return (
-    <div className="flex flex-col items-center justify-center py-12">
-      <NoData width={200} height={200} className="text-gray-500" />
-      <p className="mt-4 text-gray-400">No open orders</p>
-      <button className="mt-2 btn-secondary">Place Order</button>
+    <div className="h-[500px]">
+      <TradingView symbol={symbol} />
     </div>
   );
 }
 ```
 
----
+`TradingView` reads chart library paths from the `tradingViewConfig` on `TradingPage`/provider; the TradingView library must be placed in `public/tradingview/` (see `orderly-sdk-dex-architecture`).
 
-## Notification/Toast Component
+## App Scaffold
 
-```typescript
-import { Toast, ToastProvider, useToast } from '@orderly.network/ui';
+`Scaffold` from `@orderly.network/ui-scaffold` renders the responsive layout: top nav, left sidebar (desktop), bottom nav (mobile), account menu, and footer. Pass nav props and a `routerAdapter` for navigation.
 
-function TradingPage() {
-  const { toast } = useToast();
+```tsx
+import { Scaffold } from '@orderly.network/ui-scaffold';
 
-  const handleOrderSubmit = async () => {
-    try {
-      await submitOrder();
-      toast({
-        title: 'Order Placed',
-        description: 'Your order has been submitted successfully',
-        variant: 'success',
-      });
-    } catch (error) {
-      toast({
-        title: 'Order Failed',
-        description: error.message,
-        variant: 'error',
-      });
-    }
-  };
-
-  return <button onClick={handleOrderSubmit}>Place Order</button>;
-}
-
-// In your app root
-function App() {
+function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <TradingPage />
-    </ToastProvider>
+    <Scaffold
+      mainNavProps={navConfig} // top navigation items
+      bottomNavProps={bottomNavConfig} // mobile bottom nav
+      footerProps={footerConfig}
+      routerAdapter={{ to: (path) => navigate(path) }} // your router
+    >
+      {children}
+    </Scaffold>
   );
 }
 ```
 
----
+## Wallet Connect (UI)
 
-## Complete Trading Page Example
+There is no standalone `WalletConnect` component export. Trigger the SDK's connect modal imperatively, or gate content with `AuthGuard`:
 
-```typescript
-import {
-  OrderlyAppProvider,
-  TradingPageProvider,
-  SymbolProvider,
-  WalletConnect,
-} from '@orderly.network/react';
-import { OrderEntry, OrderEntryProvider } from '@orderly.network/ui-order-entry';
-import { Positions } from '@orderly.network/ui-positions';
-import { Orderbook, OrderbookProvider } from '@orderly.network/ui-orderbook';
-import { TradingView } from '@orderly.network/ui-chart';
-import { useOrderEntry } from '@orderly.network/hooks';
+```tsx
+import { modal } from '@orderly.network/ui';
+import { WalletConnectorModalId, AuthGuard } from '@orderly.network/ui-connector';
 
-function TradingPage() {
-  const symbol = 'PERP_BTC_USDC';
-
-  return (
-    <div className="trading-layout">
-      {/* Header */}
-      <header className="flex justify-between items-center p-4 border-b">
-        <h1>My DEX</h1>
-        <WalletConnect />
-      </header>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-12 gap-4 p-4">
-        {/* Left: Orderbook */}
-        <div className="col-span-2">
-          <OrderbookProvider symbol={symbol}>
-            <Orderbook level={15} />
-          </OrderbookProvider>
-        </div>
-
-        {/* Center: Chart + Order Entry */}
-        <div className="col-span-7">
-          <div className="h-[500px] mb-4">
-            <TradingView symbol={symbol} />
-          </div>
-          <OrderEntryProvider symbol={symbol}>
-            <OrderEntry defaultTab="limit" />
-          </OrderEntryProvider>
-        </div>
-
-        {/* Right: Positions */}
-        <div className="col-span-3">
-          <Positions showPagination={false} />
-        </div>
-      </div>
-    </div>
-  );
+function Header() {
+  return <button onClick={() => modal.show(WalletConnectorModalId)}>Connect</button>;
 }
 
-export function App() {
+function ProtectedOrders() {
   return (
-    <OrderlyAppProvider brokerId="woofi_dex">
-      <SymbolProvider>
-        <TradingPageProvider>
-          <TradingPage />
-        </TradingPageProvider>
-      </SymbolProvider>
-    </OrderlyAppProvider>
+    <AuthGuard>
+      <PositionsWidget />
+    </AuthGuard>
   );
 }
 ```
 
----
+## Base Components (`@orderly.network/ui`)
+
+### Data Table
+
+The `Table` uses a column definition API (`dataIndex`, `render`, `title`):
+
+```tsx
+import { Table, type Column } from '@orderly.network/ui';
+
+type TradeRow = { id: string; price: number; size: number; side: 'BUY' | 'SELL' };
+
+function TradesTable({ data }: { data: TradeRow[] }) {
+  const columns: Column<TradeRow>[] = [
+    {
+      title: 'Price',
+      dataIndex: 'price',
+      render: (value, record) => (
+        <span className={record.side === 'BUY' ? 'text-green-500' : 'text-red-500'}>
+          {value.toFixed(2)}
+        </span>
+      ),
+    },
+    { title: 'Size', dataIndex: 'size', formatter: (v) => v.toFixed(4) },
+    { title: 'Time', dataIndex: 'time' },
+  ];
+
+  return <Table columns={columns} dataSource={data} getKey={(r) => r.id} />;
+}
+```
+
+`Column<RecordType>` fields include: `title`, `dataIndex`, `render`, `formatter`, `width`, `align`, `fixed`, `onSort`, `className`, `getKey`, `hint`.
+
+### Modal / Sheet / Toast
+
+```tsx
+import { Modal, Sheet, toast } from '@orderly.network/ui';
+
+// Imperative toast (no provider needed — OrderlyAppProvider hosts it)
+toast.success('Order placed');
+toast.error('Order failed');
+
+// Declarative modal & sheet use trigger/content composition
+<Modal>
+  <Modal.Trigger asChild>
+    <button>Open</button>
+  </Modal.Trigger>
+  …
+</Modal>;
+<Sheet>
+  <Sheet.Trigger asChild>
+    <button>Open</button>
+  </Sheet.Trigger>
+  …
+</Sheet>;
+```
+
+> The exact composition sub-components (e.g. `ModalTrigger`) follow Radix-style naming; check the installed `@orderly.network/ui` types for the precise names if building declaratively. For toasts, prefer the imperative `toast` helper.
+
+### Other primitives
+
+`Button`, `Input`, `Select`, `Tabs`, `Spinner`, `Tooltip`, `NoData`, `Flex`, `cn`, `useScreen` — all from `@orderly.network/ui`.
 
 ## Styling
 
-Orderly components use Tailwind CSS classes. Customize with:
+Components use Tailwind utility classes and CSS variables (themeable via `themes` prop — see `orderly-sdk-theming`). Import the base stylesheet once:
 
 ```css
-/* Override component styles */
-.order-entry-root {
-  /* Your styles */
-}
-
-.positions-table {
-  /* Your styles */
-}
-
-/* Use Tailwind dark mode */
-.dark .order-entry-root {
-  /* Dark mode styles */
-}
+/* app/styles/index.css */
+@import '@orderly.network/ui/dist/styles.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 ```
-
----
 
 ## Common Issues
 
-### Components not rendering
-
-- Ensure all providers are wrapped correctly
-- Check that `SymbolProvider` is above symbol-dependent components
-- Verify Tailwind CSS is configured
-
-### Styling conflicts
-
-- Components use Tailwind utility classes
-- Override with higher-specificity CSS
-- Use `className` prop when available
-
-### Data not updating
-
-- Check WebSocket connection status
-- Verify account is connected
-- Ensure hooks are called inside provider components
+- **"Module not found: @orderly.network/react"** — Use `@orderly.network/react-app`. `react` is not a package.
+- **Components not rendering** — Ensure `OrderlyAppProvider` (and a wallet connector) wraps the app; symbol-dependent widgets need a valid `symbol`.
+- **Missing styles** — Import `@orderly.network/ui/dist/styles.css` and point Tailwind's `content` at `app/`.
+- **"TradingPageProvider/SymbolProvider is not exported"** — These don't exist. `TradingPage` handles its own context.
 
 ## Related Skills
 
-- **orderly-sdk-react-hooks** - Hook reference
-- **orderly-trading-orders** - Order management
-- **orderly-websocket-streaming** - Real-time data
+- **orderly-sdk-react-hooks** - Hook reference for the data behind these components
+- **orderly-sdk-page-components** - High-level page composition
+- **orderly-sdk-dex-architecture** - Provider setup and project structure
+- **orderly-sdk-theming** - Theming via CSS variables

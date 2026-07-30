@@ -5,7 +5,7 @@ description: Install Orderly SDK packages and related dependencies (hooks, UI, f
 
 # Orderly Network: SDK Install Dependency
 
-Use this skill to add Orderly SDK packages to your project. The SDK is modular—install only what you need.
+Use this skill to add Orderly SDK packages to your project. The SDK is modular—install only what you need. Versions below reflect the current `3.1.x` line.
 
 ## When to Use
 
@@ -16,18 +16,18 @@ Use this skill to add Orderly SDK packages to your project. The SDK is modular�
 
 ## Prerequisites
 
-- Node.js 18+ installed
+- Node.js 20+ installed (enforced in `package.json` `engines`)
 - npm, yarn, or pnpm package manager
 - React 18+ project (for UI packages)
 
 ## Quick Start (Full DEX)
 
-> **IMPORTANT**: A functional DEX requires BOTH the Orderly packages AND the wallet connector dependencies. The `@orderly.network/wallet-connector` package needs `@web3-onboard/*` packages for EVM wallets and `@solana/wallet-adapter-*` packages for Solana wallets.
+> **IMPORTANT**: A functional DEX requires BOTH the Orderly packages AND the wallet connector dependencies. `@orderly.network/wallet-connector` needs `@web3-onboard/*` packages for EVM wallets and `@solana/wallet-adapter-*` packages for Solana wallets. `<WalletConnectorProvider>` takes **configured** `evmInitial` / `solanaInitial` props — they are not optional in a real DEX (see **orderly-sdk-wallet-connection**).
 >
-> **Note**: `@orderly.network/hooks` is included as a transitive dependency via `@orderly.network/react-app` — you do not need to install it separately for most DEX projects. Only install it directly if you are using the hooks-only integration path without `react-app`.
+> **Note**: `@orderly.network/hooks` is a transitive dependency of `@orderly.network/react-app` — you do not need to install it separately unless you are on the hooks-only integration path.
 
 ```bash
-# Orderly SDK packages
+# Orderly SDK packages (all pinned to the same 3.1.x release)
 npm install @orderly.network/react-app \
             @orderly.network/trading \
             @orderly.network/portfolio \
@@ -35,11 +35,13 @@ npm install @orderly.network/react-app \
             @orderly.network/wallet-connector \
             @orderly.network/i18n
 
-# REQUIRED: EVM wallet support (MetaMask, WalletConnect, etc.)
-npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
+# REQUIRED: EVM wallet support (MetaMask, WalletConnect, Binance, etc.)
+npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect \
+            @binance/w3w-blocknative-connector wagmi
 
-# REQUIRED: Solana wallet support (Phantom, Solflare, etc.)
-npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
+# REQUIRED: Solana wallet support (Phantom, Solflare, mobile, etc.)
+npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets \
+            @solana-mobile/wallet-adapter-mobile
 ```
 
 ## Package Reference
@@ -48,10 +50,10 @@ npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 
 | Package                      | Description                                           | Key Exports                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `@orderly.network/react-app` | Main app provider, config context, error boundary     | `OrderlyAppProvider`, `useAppContext`, `useAppConfig`, `ErrorBoundary`                                                         |
+| `@orderly.network/react-app` | Main app provider, config context                     | `OrderlyAppProvider`, `useAppContext`, `useAppConfig`                                                                          |
 | `@orderly.network/hooks`     | React hooks for trading, account, orders, positions   | `useAccount`, `useOrderEntry`, `usePositionStream`, `useOrderStream`, `useDeposit`, `useWithdraw`, `useLeverage`, `useMarkets` |
 | `@orderly.network/types`     | TypeScript type definitions and constants             | `API`, `OrderType`, `OrderSide`, `OrderStatus`, `NetworkId`, `ChainConfig`                                                     |
-| `@orderly.network/ui`        | Base UI components (buttons, inputs, dialogs, tables) | `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Select`, `Tooltip`, `Modal`, `Spinner`, `toast`, `OrderlyThemeProvider`         |
+| `@orderly.network/ui`        | Base UI components (buttons, inputs, dialogs, tables) | `Button`, `Input`, `Dialog`, `Table`, `Tabs`, `Select`, `Tooltip`, `Modal`, `Spinner`, `toast`, `useScreen`, `Flex`, `cn`      |
 | `@orderly.network/i18n`      | Internationalization (i18n) support                   | `LocaleProvider`, `useTranslation`, `i18n`, `defaultLanguages`                                                                 |
 | `@orderly.network/utils`     | Utility functions (formatting, math, dates)           | `formatNumber`, `Decimal`, `dayjs`                                                                                             |
 
@@ -61,60 +63,64 @@ npm install @orderly.network/react-app @orderly.network/hooks @orderly.network/t
 
 ## Feature Widgets (High-Level Pages)
 
-Complete, pre-built page components with full functionality.
+Complete, pre-built page components with full functionality. **Exports below are the real names imported by the reference template** — note `Dashboard.DashboardPage`, `GeneralLeaderboardWidget`, and `PointSystemPage` specifically.
 
-| Package                                | Description                                                  | Key Exports                                                                                                               |
+| Package                                | Description                                                  | Key Exports (verified)                                                                                                    |
 | -------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `@orderly.network/trading`             | Full trading page (chart, orderbook, order entry, positions) | `TradingPage`, `OrderBook`, `LastTrades`, `AssetView`, `RiskRate`, `SplitLayout`                                          |
 | `@orderly.network/portfolio`           | Portfolio dashboard (positions, orders, assets, history)     | `OverviewModule`, `PositionsModule`, `OrdersModule`, `AssetsModule`, `HistoryModule`, `FeeTierModule`, `APIManagerModule` |
 | `@orderly.network/markets`             | Markets listing page with prices and stats                   | `MarketsHomePage`, `MarketsProvider`, `MarketsList`, `SymbolInfoBar`, `FundingOverview`                                   |
 | `@orderly.network/vaults`              | Vault/Earn products page                                     | `VaultsPage`                                                                                                              |
-| `@orderly.network/affiliate`           | Referral/affiliate program page                              | `AffiliatePage`                                                                                                           |
-| `@orderly.network/trading-leaderboard` | Trading competition leaderboard                              | `LeaderboardPage`                                                                                                         |
-| `@orderly.network/trading-rewards`     | Trading rewards program page                                 | `TradingRewardsPage`                                                                                                      |
-| `@orderly.network/trading-points`      | Trading points/merits program page                           | `TradingPointsPage`                                                                                                       |
+| `@orderly.network/affiliate`           | Referral/affiliate program                                   | `Dashboard` (use `Dashboard.DashboardPage`), `ReferralProvider`                                                           |
+| `@orderly.network/trading-leaderboard` | Trading competition leaderboard                              | `GeneralLeaderboardWidget`                                                                                                |
+| `@orderly.network/trading-points`      | Points/merits program page                                   | `PointSystemPage`                                                                                                         |
 
 ```bash
-npm install @orderly.network/trading @orderly.network/portfolio @orderly.network/markets
+npm install @orderly.network/trading @orderly.network/portfolio @orderly.network/markets @orderly.network/trading-leaderboard @orderly.network/trading-points @orderly.network/affiliate @orderly.network/vaults
 ```
+
+> There is no `@orderly.network/trading-rewards` package. The points/rewards page is `@orderly.network/trading-points` exporting `PointSystemPage`. Likewise `@orderly.network/affiliate` does **not** export `AffiliatePage` — use `Dashboard.DashboardPage` inside `<ReferralProvider>`.
 
 ## Wallet Connectors
 
 Choose **one** wallet connection strategy.
 
-| Package                                   | Description                                         | Key Exports               |
-| ----------------------------------------- | --------------------------------------------------- | ------------------------- |
-| `@orderly.network/wallet-connector`       | Standard connector (Web3-Onboard + Solana adapters) | `WalletConnectorProvider` |
-| `@orderly.network/wallet-connector-privy` | Privy connector (social login, embedded wallets)    | `PrivyConnectorProvider`  |
+| Package                                   | Description                                         | Key Exports                    |
+| ----------------------------------------- | --------------------------------------------------- | ------------------------------ |
+| `@orderly.network/wallet-connector`       | Standard connector (Web3-Onboard + Solana adapters) | `WalletConnectorProvider`      |
+| `@orderly.network/wallet-connector-privy` | Privy connector (social login, embedded wallets)    | `WalletConnectorPrivyProvider` |
 
 **Option A: Standard Wallet Connector (Recommended)**
 
-Supports EVM (MetaMask, WalletConnect, Binance, etc.) and Solana (Phantom, Solflare).
+Supports EVM (MetaMask, WalletConnect, Binance, etc.) and Solana (Phantom, Solflare, Ledger, mobile).
 
-> **Note**: The `@orderly.network/wallet-connector` works with sensible defaults. Installing the underlying wallet packages (`@web3-onboard/*`, `@solana/wallet-adapter-*`) is optional and only needed for custom wallet configuration (e.g., adding WalletConnect with a project ID). The official templates use `<WalletConnectorProvider>` with no props and no extra wallet packages.
+> The connector requires the underlying wallet packages — you build `evmInitial` (injected + WalletConnect connectors) and `solanaInitial` (network + wallet list) and pass both as props. See **orderly-sdk-wallet-connection** for the full `walletConfig.ts`.
 
 ```bash
-# Main connector package
 npm install @orderly.network/wallet-connector
 
-# Optional: EVM wallet packages (for custom WalletConnect, etc.)
-npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect
+# EVM wallets
+npm install @web3-onboard/injected-wallets @web3-onboard/walletconnect \
+            @binance/w3w-blocknative-connector wagmi
 
-# Optional: Solana wallet packages (for custom Solana wallet config)
-npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
+# Solana wallets
+npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets \
+            @solana-mobile/wallet-adapter-mobile
 ```
 
 **Option B: Privy Connector**
 
-For social login (Google, email, etc.) and embedded wallets.
+For social login (Google, X, email, passkey) and embedded wallets.
+
+> The Privy package depends on `@privy-io/cross-app-connect` (NOT the older `@privy-io/react-auth`).
 
 ```bash
-npm install @orderly.network/wallet-connector-privy @privy-io/react-auth
+npm install @orderly.network/wallet-connector-privy @privy-io/cross-app-connect
 ```
 
 ## UI Sub-Packages (Granular Components)
 
-Individual UI modules for custom integrations. These are dependencies of `@orderly.network/trading` and `@orderly.network/portfolio`, but can be installed separately.
+Individual UI modules for custom integrations. These are dependencies of `@orderly.network/trading` and `@orderly.network/portfolio`, but can be installed separately. In the reference template, these are consumed via `@orderly.network/ui` and `@orderly.network/ui-scaffold` re-exports rather than imported directly.
 
 | Package                              | Description                                   | Key Exports                                                                                                |
 | ------------------------------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -132,7 +138,7 @@ Individual UI modules for custom integrations. These are dependencies of `@order
 | `@orderly.network/ui-notification`   | Notification center                           | `NotificationWidget`                                                                                       |
 
 ```bash
-npm install @orderly.network/ui-scaffold @orderly.network/ui-order-entry
+npm install @orderly.network/ui-scaffold @orderly.network/ui
 ```
 
 ## Low-Level Packages
@@ -166,6 +172,8 @@ npm install @orderly.network/react-app \
 
 ### Full DEX with All Features
 
+Mirrors the reference template's dependencies:
+
 ```bash
 npm install @orderly.network/react-app \
             @orderly.network/trading \
@@ -174,22 +182,16 @@ npm install @orderly.network/react-app \
             @orderly.network/vaults \
             @orderly.network/affiliate \
             @orderly.network/trading-leaderboard \
+            @orderly.network/trading-points \
             @orderly.network/wallet-connector \
+            @orderly.network/wallet-connector-privy \
             @orderly.network/i18n \
-            @orderly.network/ui
-```
-
-### Custom UI with Scaffold Layout
-
-```bash
-npm install @orderly.network/react-app \
-            @orderly.network/hooks \
+            @orderly.network/types \
             @orderly.network/ui \
-            @orderly.network/ui-scaffold \
-            @orderly.network/ui-order-entry \
-            @orderly.network/ui-positions \
-            @orderly.network/wallet-connector
+            @orderly.network/ui-scaffold
 ```
+
+The reference template also pulls in `woofi-swap-widget-kit` (for the swap page), `wagmi`, `react-helmet-async` (SEO), `react-router-dom` (v7, routing), `firebase`, `zod`, `ip-range-check`, and `@plausible-analytics/tracker`. Add these only if your build uses those features.
 
 ### Privy (Social Login) Setup
 
@@ -197,7 +199,7 @@ npm install @orderly.network/react-app \
 npm install @orderly.network/react-app \
             @orderly.network/trading \
             @orderly.network/wallet-connector-privy \
-            @privy-io/react-auth
+            @privy-io/cross-app-connect
 ```
 
 ## Peer Dependencies
@@ -215,7 +217,7 @@ All packages require:
 
 ## Tailwind CSS Setup
 
-The UI packages require Tailwind CSS with the Orderly preset:
+The UI packages require Tailwind CSS. There is **no Orderly preset** — point the content glob at `app/` (the source root) and the `@orderly.network` packages.
 
 ```bash
 npm install -D tailwindcss postcss autoprefixer
@@ -224,20 +226,21 @@ npm install -D tailwindcss postcss autoprefixer
 **tailwind.config.ts:**
 
 ```ts
-import { OUITailwind } from '@orderly.network/ui';
+import type { Config } from 'tailwindcss';
 
 export default {
-  content: ['./src/**/*.{js,ts,jsx,tsx}', './node_modules/@orderly.network/**/*.{js,mjs}'],
-  presets: [OUITailwind.preset],
-};
+  content: ['./app/**/{**,.client,.server}/**/*.{js,jsx,ts,tsx}'],
+  theme: { extend: {} },
+  plugins: [],
+} satisfies Config;
 ```
 
 **CSS entry file:**
 
-> **Important**: Only `@orderly.network/ui` has a CSS file. Other packages (`trading`, `portfolio`, `markets`) do NOT have separate CSS files—they use the base UI styles.
+> Only `@orderly.network/ui` ships a CSS file. `trading`, `portfolio`, `markets`, etc. reuse these base styles — do not look for per-package CSS.
 
 ```css
-/* Only import from @orderly.network/ui - other packages don't have CSS files */
+/* app/styles/index.css */
 @import '@orderly.network/ui/dist/styles.css';
 
 @tailwind base;
@@ -245,12 +248,12 @@ export default {
 @tailwind utilities;
 ```
 
-## Vite Polyfills (Required)
+## Vite Plugins (Required)
 
-The wallet connector packages use Node.js built-ins like `Buffer`. You must add polyfills for browser compatibility:
+The wallet connector / Solana packages use Node.js built-ins (`Buffer`, `crypto`, `stream`) and some ship CommonJS. Polyfill **only `buffer`, `crypto`, `stream`** — do **not** add `util` or `globals` (they break the build). Interop CommonJS deps with `vite-plugin-cjs-interop`. Path aliases come from `tsconfig.json` via `vite-tsconfig-paths`.
 
 ```bash
-npm install -D vite-plugin-node-polyfills
+npm install -D vite-plugin-node-polyfills vite-plugin-cjs-interop vite-tsconfig-paths
 ```
 
 **vite.config.ts:**
@@ -258,34 +261,33 @@ npm install -D vite-plugin-node-polyfills
 ```ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { cjsInterop } from 'vite-plugin-cjs-interop';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'util'],
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
-      },
-    }),
+    tsconfigPaths(),
+    cjsInterop({ dependencies: ['bs58', '@coral-xyz/anchor', 'lodash'] }),
+    nodePolyfills({ include: ['buffer', 'crypto', 'stream'] }), // NO util, NO globals
   ],
 });
 ```
 
 ## Version Compatibility
 
-All `@orderly.network/*` packages should use the same version to ensure compatibility.
+All `@orderly.network/*` packages must share the **same version**. The exception is `@orderly.network/trading-points`, which follows its own version line. Current reference versions:
 
 ```json
 {
   "dependencies": {
-    "@orderly.network/react-app": "^2.8.0",
-    "@orderly.network/trading": "^2.8.0",
-    "@orderly.network/hooks": "^2.8.0",
-    "@orderly.network/ui": "^2.8.0"
+    "@orderly.network/react-app": "3.1.6",
+    "@orderly.network/trading": "3.1.6",
+    "@orderly.network/portfolio": "3.1.6",
+    "@orderly.network/hooks": "3.1.6",
+    "@orderly.network/ui": "3.1.6",
+    "@orderly.network/trading-points": "2.0.2"
   }
 }
 ```

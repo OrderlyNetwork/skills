@@ -333,32 +333,37 @@ import {
   useOrderbookStream,
   usePositionStream,
   useOrderStream,
-  useBalance
+  useCollateral,
+  useHoldingStream
 } from '@orderly.network/hooks';
+import { OrderStatus } from '@orderly.network/types';
 
 function TradingInterface({ symbol }: { symbol: string }) {
   // Orderbook - automatically connects to WebSocket
   const { asks, bids } = useOrderbookStream(symbol);
 
-  // Positions - real-time updates
-  const { rows: positions } = usePositionStream();
+  // Positions - real-time updates (returns a 3-tuple)
+  const [positions] = usePositionStream();
 
   // Orders - real-time updates
   const [orders] = useOrderStream({ status: OrderStatus.INCOMPLETE });
 
-  // Balance
-  const balance = useBalance();
+  // Balance / collateral and real-time holdings
+  const { freeCollateral } = useCollateral({ dp: 2 });
+  const holdings = useHoldingStream();
 
   return (
     <div>
       <OrderbookWidget asks={asks} bids={bids} />
-      <PositionsTable positions={positions} />
-      <OrdersTable orders={orders} />
-      <BalanceDisplay balance={balance} />
+      <PositionsTable positions={positions?.rows ?? []} />
+      <OrdersTable orders={orders ?? []} />
+      <BalanceDisplay freeCollateral={freeCollateral} holdings={holdings} />
     </div>
   );
 }
 ```
+
+> There is no `useBalance` hook. Use `useCollateral` (account value/free collateral) or `useHoldingStream` (per-token holding feed). `usePositionStream` returns a **3-tuple** `[positions, calc, status]` — destructure it as an array, not an object.
 
 ## Connection Management
 

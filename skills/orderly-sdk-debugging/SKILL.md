@@ -5,412 +5,349 @@ description: Debug and troubleshoot common issues with the Orderly SDK including
 
 # Orderly Network: SDK Debugging
 
-A comprehensive guide to debugging common issues, handling errors, and troubleshooting problems with the Orderly SDK.
+A guide to debugging **runtime behavior of the Orderly SDK** — account/auth state, data streams, order and deposit/withdraw failures, and the errors the SDK throws.
+
+> This skill covers the SDK's own runtime surface. For **build/setup** problems (Vite polyfills, CSS imports, package versions) see **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture**; for **wiring** (provider props, `.env` config) see **orderly-sdk-dex-architecture**.
 
 ## When to Use
 
-- Fixing build errors
-- Debugging WebSocket connections
-- Handling API errors
-- Troubleshooting authentication issues
-- Investigating trading failures
+- Debugging account / authentication state ("stuck connecting", "not signed in")
+- Investigating data not loading (orderbook, positions, balances)
+- Troubleshooting order submission / rejections
+- Troubleshooting deposit / withdrawal failures
+- Understanding SDK-thrown errors (`ApiError` / `SDKError`)
 
 ## Prerequisites
 
-- Orderly SDK installed
-- Basic debugging knowledge
+- Orderly SDK providers mounted (`OrderlyAppProvider` from `@orderly.network/react-app`)
 - Browser DevTools familiarity
 
-## 1. Build & Setup Errors
+## 1. Account & Authentication State
 
-### Buffer is not defined
-
-```
-Uncaught ReferenceError: Buffer is not defined
-```
-
-**Cause**: Wallet libraries use Node.js built-ins (Buffer, crypto) that don't exist in browsers.
-
-**Solution**: Add `vite-plugin-node-polyfills`:
-
-```bash
-npm install -D vite-plugin-node-polyfills
-```
-
-```ts
-// vite.config.ts
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
-
-export default defineConfig({
-  plugins: [
-    react(),
-    nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'util'],
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
-      },
-    }),
-  ],
-});
-```
-
-### CSS Import Not Found
-
-```
-ENOENT: no such file or directory, open '@orderly.network/trading/dist/styles.css'
-```
-
-**Cause**: Only `@orderly.network/ui` has a CSS file.
-
-**Solution**: Only import from `@orderly.network/ui`:
-
-```css
-/* Correct - only ui package has CSS */
-@import '@orderly.network/ui/dist/styles.css';
-
-/* Wrong - these don't exist */
-/* @import '@orderly.network/trading/dist/styles.css'; */
-/* @import '@orderly.network/portfolio/dist/styles.css'; */
-```
-
-## 2. Common Error Codes
-
-### API Error Codes
-
-| Code    | Message           | Cause               | Solution          |
-| ------- | ----------------- | ------------------- | ----------------- |
-| `-1000` | Unknown error     | Server error        | Retry request     |
-| `-1002` | Unauthorized      | Invalid/expired key | Re-authenticate   |
-| `-1003` | Too many requests | Rate limit          | Implement backoff |
-| `-1102` | Invalid parameter | Wrong order params  | Validate inputs   |
-
-### Order Error Codes
-
-| Code    | Message                         | Cause                   | Solution             |
-| ------- | ------------------------------- | ----------------------- | -------------------- |
-| `-2001` | Insufficient balance            | Not enough USDC         | Deposit more funds   |
-| `-2002` | Order would trigger liquidation | Risk too high           | Reduce position size |
-| `-2004` | Price out of range              | Price too far from mark | Adjust limit price   |
-| `-2005` | Order quantity too small        | Below minimum           | Increase quantity    |
-
-### Withdrawal Error Codes
-
-| Code    | Message                     | Cause                | Solution            |
-| ------- | --------------------------- | -------------------- | ------------------- |
-| `-3001` | Insufficient balance        | Not enough available | Check unsettled PnL |
-| `-3002` | Withdrawal amount too small | Below minimum        | Increase amount     |
-
-## 3. WebSocket Connection
-
-### Monitor Connection Status
+The SDK account moves through a fixed ladder of states. Most "nothing works" bugs are an account stuck before `SignedIn`.
 
 ```tsx
-import { useWsStatus, WsNetworkStatus } from '@orderly.network/hooks';
-
-function ConnectionIndicator() {
-  const wsStatus = useWsStatus();
-
-  return (
-    <div className="connection-status">
-      {wsStatus === WsNetworkStatus.Connected && (
-        <span className="text-green-500">● Connected</span>
-      )}
-      {wsStatus === WsNetworkStatus.Unstable && (
-        <span className="text-yellow-500">● Reconnecting...</span>
-      )}
-      {wsStatus === WsNetworkStatus.Disconnected && (
-        <span className="text-red-500">● Disconnected</span>
-      )}
-    </div>
-  );
-}
-```
-
-### WebSocket Status Values
-
-| Status         | Description                              |
-| -------------- | ---------------------------------------- |
-| `Connected`    | WebSocket is connected and working       |
-| `Unstable`     | Connection dropped, attempting reconnect |
-| `Disconnected` | Connection lost, not reconnecting        |
-
-## 4. Account State Issues
-
-### Check Account State
-
-```tsx
-import { useAccount, AccountStatusEnum } from '@orderly.network/hooks';
+import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
 function AccountDebugger() {
   const { state, account } = useAccount();
 
-  useEffect(() => {
-    console.log('Account State:', {
-      status: state.status,
-      address: state.address,
-      userId: state.userId,
-      accountId: state.accountId,
-      hasOrderlyKey: !!account?.keyStore?.getOrderlyKey(),
-    });
-  }, [state, account]);
-
-  // Common issues:
-  switch (state.status) {
-    case AccountStatusEnum.NotConnected:
-      return <p>Wallet not connected</p>;
-    case AccountStatusEnum.Connected:
-      return <p>Wallet connected, not signed in</p>;
-    case AccountStatusEnum.NotSignedIn:
-      return <p>Need to sign message to create Orderly key</p>;
-    case AccountStatusEnum.SignedIn:
-      return <p>Fully authenticated</p>;
-  }
+  // state.status is an AccountStatusEnum (numeric)
+  console.log('account state', state.status, AccountStatusEnum[state.status]);
+  console.log('accountId', account?.accountId);
 }
 ```
 
-### Common Account Issues
+### `AccountStatusEnum` (from `@orderly.network/types`)
 
-| Issue                | Cause                  | Solution             |
-| -------------------- | ---------------------- | -------------------- |
-| Stuck on "Connected" | User didn't sign       | Prompt for signature |
-| Key expired          | 365-day expiry         | Re-authenticate      |
-| Wrong network        | Testnet vs mainnet     | Check `networkId`    |
-| No user ID           | Account not registered | Complete signup      |
+| Value | Name                            | Meaning                                                       |
+| ----- | ------------------------------- | ------------------------------------------------------------- |
+| `-1`  | `EnableTradingWithoutConnected` | Trading enabled without a connected wallet                    |
+| `0`   | `NotConnected`                  | No wallet connected                                           |
+| `1`   | `Connected`                     | Wallet connected, Orderly account not yet resolved            |
+| `2`   | `NotSignedIn`                   | Need an EIP-712 / Ed25519 signature to create the Orderly key |
+| `3`   | `SignedIn`                      | Fully authenticated — private streams/orders work             |
+| `4`   | `DisabledTrading`               | Trading disabled for this account                             |
+| `5`   | `EnableTrading`                 | Trading enabled                                               |
 
-## 5. Order Submission Errors
+### The authentication ladder & common stuck points
 
-### Validate Before Submit
+```
+NotConnected ──connect wallet──▶ Connected ──resolve account──▶ NotSignedIn ──sign──▶ SignedIn
+```
+
+| Symptom                                | Likely state              | Fix                                                        |
+| -------------------------------------- | ------------------------- | ---------------------------------------------------------- |
+| Private data (positions/balance) empty | `< SignedIn`              | Drive the user through sign-in (signature)                 |
+| App keeps prompting to connect         | `NotConnected`            | Check `WalletConnectorProvider` is mounted & configured    |
+| "Sign" never completes                 | `NotSignedIn`             | Wallet rejected; re-prompt. Key expires after 365 days     |
+| Orders rejected as unauthorized        | `NotSignedIn`/`Connected` | Account must be `SignedIn` to submit orders                |
+| `state.validating` stays `true`        | any                       | Network/request to resolve account hung — check WS/network |
+
+> `useAccount()` returns `{ account, state, ... }`; `state` is an `AccountState` with `status: AccountStatusEnum` and `validating: boolean`.
+
+## 2. Data Not Loading
+
+Public streams (orderbook, trades, mark price) work without auth. **Private** streams (positions, orders, balance, wallet) require the account to be `SignedIn`. If public data shows but private data is empty, check the account state first (§1).
+
+### WebSocket connection health
+
+```tsx
+import { useWsStatus, WsNetworkStatus } from '@orderly.network/hooks';
+
+function StreamHealth() {
+  const ws = useWsStatus();
+  // WsNetworkStatus is string-valued: 'connected' | 'unstable' | 'disconnected'
+  return <span>{ws}</span>;
+}
+```
+
+| `WsNetworkStatus` | Meaning                                       |
+| ----------------- | --------------------------------------------- |
+| `Connected`       | WS up; streams flowing                        |
+| `Unstable`        | Dropped, SDK is reconnecting                  |
+| `Disconnected`    | Lost and not reconnecting — re-mount provider |
+
+### Boot / preload status
+
+```tsx
+import { usePreLoadData } from '@orderly.network/hooks';
+
+const { done, error } = usePreLoadData();
+// done === false for the lifetime of the app = the initial data fetch failed/stalled
+```
+
+### Checklist: data not loading
+
+- [ ] `useWsStatus()` is `Connected`?
+- [ ] For **private** data: `state.status >= SignedIn`?
+- [ ] `networkId` matches the chains you expect (`mainnet` vs `testnet`)?
+- [ ] `usePreLoadData().done === true`?
+- [ ] Symbol string is exact, e.g. `PERP_ETH_USDC`?
+- [ ] No SDK errors in the console (§5)?
+
+## 3. Order Submission Errors
+
+`useOrderEntry(symbol, options)` exposes order readiness and validation **before** you submit. Check `metaState` and call `helper.validate()`.
 
 ```tsx
 import { useOrderEntry } from '@orderly.network/hooks';
 
 function OrderDebugger() {
-  const { formattedOrder, metaState, helper } = useOrderEntry('PERP_ETH_USDC');
+  const { formattedOrder, metaState, helper, maxQty, estLiqPrice, submit } =
+    useOrderEntry('PERP_ETH_USDC');
 
-  // Check for validation errors
-  if (metaState.errors) {
-    console.log('Order Errors:', metaState.errors);
+  // metaState.errors: OrderValidationResult | null  (null = valid)
+  // metaState.validated: boolean
+  console.log({ ready: metaState.validated && !metaState.errors, maxQty, estLiqPrice });
+
+  async function place() {
+    try {
+      const res = await submit({ resetOnSuccess: true });
+      console.log('ok', res);
+    } catch (e) {
+      // SDK wraps REST failures in ApiError (see §5)
+      console.error('order failed', e);
+    }
   }
-
-  // Check order readiness
-  console.log('Order Ready:', {
-    canSubmit: !metaState.errors && formattedOrder,
-    maxQty: helper.maxQty,
-    estLiqPrice: helper.estLiqPrice,
-  });
 }
 ```
 
-### Debug Order Rejection
+> Field keys you set via `setValue()` are: `side`, `order_type`, `order_price`, `order_quantity`, `reduce_only`, `tp_trigger_price`, `sl_price`. The submit mutation flag is `metaState`-driven / `isMutating` on the hook — there is **no** `isSubmitting`.
+
+### Reading order states in the order stream
 
 ```tsx
-async function submitOrderWithDebug(order) {
-  try {
-    const result = await submit();
-    console.log('Order submitted:', result);
-  } catch (error) {
-    console.error('Order failed:', {
-      code: error.code,
-      message: error.message,
-    });
+import { useOrderStream } from '@orderly.network/hooks';
+import { OrderStatus } from '@orderly.network/types';
 
-    if (error.code === -2001) {
-      console.log('Fix: Deposit more USDC or reduce order size');
-    } else if (error.code === -2002) {
-      console.log('Fix: Reduce leverage or position size');
-    }
-
-    throw error;
-  }
-}
+const [orders] = useOrderStream({ status: OrderStatus.INCOMPLETE });
+// OrderStatus: OPEN | NEW | FILLED | PARTIAL_FILLED | CANCELLED | REPLACED | COMPLETED | INCOMPLETE | REJECTED
 ```
 
-## 6. Deposit/Withdrawal Errors
+Use `OrderStatus.INCOMPLETE` (not the string `'OPEN'`) to query open orders. A `REJECTED` entry in the stream means the server rejected a submitted order — inspect its reason field.
 
-### Debug Deposit
+### Checklist: order not submitting / rejected
+
+- [ ] `state.status` is `SignedIn`?
+- [ ] Symbol exact (`PERP_ETH_USDC`)?
+- [ ] `metaState.errors` is `null` (validated)?
+- [ ] Quantity ≥ symbol minimum (check `maxQty`)?
+- [ ] Limit price within allowed range of mark?
+- [ ] Enough free collateral (`useCollateral().freeCollateral`)?
+
+## 4. Deposit & Withdrawal Errors
+
+### Deposit (requires ERC-20 allowance first)
 
 ```tsx
 import { useDeposit } from '@orderly.network/hooks';
 
 function DepositDebugger() {
-  const { deposit, balance, allowance, approve } = useDeposit();
+  const { balance, allowance, approve, deposit, dst } = useDeposit({
+    /* srcChainId, token, ... */
+  });
 
-  const handleDeposit = async (amount) => {
-    console.log('Deposit Debug:', {
-      amount,
-      walletBalance: balance,
-      currentAllowance: allowance,
-      needsApproval: Number(amount) > Number(allowance),
-    });
-
-    try {
-      if (Number(amount) > Number(allowance)) {
-        console.log('Approving USDC...');
-        await approve(amount);
-      }
-
-      console.log('Depositing...');
-      const result = await deposit();
-      console.log('Deposit success:', result);
-    } catch (error) {
-      console.error('Deposit failed:', error);
-
-      if (error.message.includes('user rejected')) {
-        console.log('User rejected transaction');
-      } else if (error.message.includes('insufficient')) {
-        console.log('Insufficient balance or gas');
-      }
+  async function run(amount: string) {
+    // allowance must cover amount, else approve first
+    if (Number(amount) > Number(allowance)) {
+      await approve(amount); // wallet prompt
     }
-  };
+    await deposit(); // NOTE: deposit() takes NO arguments
+  }
 }
 ```
 
-## 7. Debugging Hooks
+- `approve(amount?)` and `deposit()` both trigger wallet prompts; wrap in try/catch.
+- `deposit()` takes **no arguments** — the amount comes from the hook's `quantity`/`setQuantity` state.
+- `depositFee` is a `bigint`.
 
-### Enable Debug Mode
+### Withdrawal
 
 ```tsx
-// Log all hook state changes
-function useDebugHook(hookName, value) {
-  useEffect(() => {
-    console.log(`[${hookName}]`, value);
-  }, [value, hookName]);
-  return value;
+import { useWithdraw } from '@orderly.network/hooks';
+
+const { withdraw, maxAmount, unsettledPnL } = useWithdraw({
+  /* srcChainId, token, decimals */
+});
+
+await withdraw({
+  chainId,
+  token,
+  amount,
+  allowCrossChainWithdraw: true,
+  // receiver?: '<optional custom address>'
+});
+```
+
+- Use `maxAmount` for the cap (not the deprecated `availableWithdraw`).
+- `unsettledPnL` reduces what you can withdraw — if withdrawals fail as insufficient, check it.
+
+### Reading withdrawal readiness
+
+`WithdrawStatus` (`@orderly.network/types`): `NotSupported` | `NotConnected` | `Unsettle` (unsettled PnL blocks) | `InsufficientBalance` | `Normal`. Only `Normal` is withdrawable.
+
+### Detecting user-rejected / insufficient transactions
+
+These failures come from the wallet/chain, not the Orderly API. Match on `error.message`:
+
+```ts
+catch (e) {
+  const msg = String((e as Error)?.message ?? '');
+  if (/reject|denied/i.test(msg))  /* user rejected the wallet prompt */;
+  if (/insufficient/i.test(msg))   /* not enough gas/balance on-chain */;
 }
-
-// Usage
-const positions = useDebugHook('positions', usePositionStream().positions);
 ```
 
-## 8. Network Issues
+## 5. Reading SDK Errors
 
-### CORS Errors
+The SDK surfaces two error classes from `@orderly.network/types`:
 
+- **`ApiError`** — REST API failures. Constructed with `(message: string, code: number)`. The numeric `code` identifies the failure class; read `error.message` for detail.
+- **`SDKError`** — client-side / SDK-internal failures.
+
+```ts
+import { ApiError, SDKError } from '@orderly.network/types';
+
+try {
+  await someSdkAction();
+} catch (e) {
+  if (e instanceof ApiError) {
+    console.error('API error', e.message /* numeric code lives on the instance */);
+  } else if (e instanceof SDKError) {
+    console.error('SDK error', e.message);
+  }
+}
 ```
-Access to fetch at 'https://api.orderly.org/...' has been blocked by CORS
-```
 
-**Solutions**:
+> Don't hard-code REST error code tables — codes can change. Log `error.message`, and branch on the codes you actually observe for your flow.
 
-1. SDK handles CORS automatically
-2. Check you're not calling API directly without SDK
+### Rate limiting
 
-### Rate Limiting
+REST `-1003`-style rate limits surface as `ApiError`. Retry with backoff:
 
-```tsx
-// Implement exponential backoff
-async function withRetry(fn, maxRetries = 3, baseDelay = 1000) {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+```ts
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, base = 1000): Promise<T> {
+  for (let i = 0; ; i++) {
     try {
       return await fn();
-    } catch (error) {
-      if (error.code === -1003 && attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt);
-        console.log(`Rate limited, retrying in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      } else {
-        throw error;
+    } catch (e) {
+      const code = (e as ApiError & { code?: number })?.code;
+      if (code === -1003 && i < retries) {
+        await new Promise((r) => setTimeout(r, base * 2 ** i));
+        continue;
       }
+      throw e;
     }
   }
 }
 ```
 
-## 9. Error Boundary
+## 5. Inspecting Hook State
 
-Wrap your app with an error boundary:
+A tiny logger helps track async hook output across renders:
 
 ```tsx
-import { ErrorBoundary } from '@orderly.network/react-app';
-
-// Or create custom:
-class OrderlyErrorBoundary extends React.Component {
-  state = { hasError: false, error: undefined };
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Orderly Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="error-fallback">
-          <h2>Something went wrong</h2>
-          <pre>{this.state.error?.message}</pre>
-          <button onClick={() => window.location.reload()}>Reload Page</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
+function useDebugHook<T>(name: string, value: T): T {
+  useEffect(() => {
+    console.log(`[${name}]`, value);
+  }, [name, value]);
+  return value;
 }
 ```
 
-## 10. Debugging Checklist
+### Remember the return shapes (common confusion)
 
-### Order Not Submitting
+| Hook                | Shape                                                                |
+| ------------------- | -------------------------------------------------------------------- |
+| `usePositionStream` | 3-tuple: `[positions, calc, { isLoading }]`                          |
+| `useCollateral`     | object: `{ totalCollateral, freeCollateral, availableBalance, ... }` |
+| `useOrderEntry`     | object: `{ submit, metaState, helper, setValue, ... }`               |
+| `useAccount`        | object: `{ account, state, ... }` (`state.status`)                   |
+| `useOrderStream`    | 2-tuple: `[orders, { total, isLoading, cancelOrder, ... }]`          |
 
-- [ ] Account status is `SignedIn`?
-- [ ] Symbol format correct? (e.g., `PERP_ETH_USDC`)
-- [ ] Sufficient balance?
-- [ ] Order quantity above minimum?
-- [ ] Limit price within range?
-- [ ] No validation errors in `metaState.errors`?
+Destructuring the wrong arity is a frequent silent bug (e.g. reading `isLoading` off the first element).
 
-### Wallet Not Connecting
-
-- [ ] WalletConnectorProvider configured?
-- [ ] Correct wallet adapters installed?
-- [ ] Chain supported for network?
-- [ ] User approved connection in wallet?
-
-### Data Not Loading
-
-- [ ] WebSocket connected?
-- [ ] Correct networkId (mainnet vs testnet)?
-- [ ] User authenticated for private data?
-- [ ] Check browser console for errors?
-
-### Deposit/Withdraw Failing
-
-- [ ] Correct chain selected?
-- [ ] USDC approved for deposit?
-- [ ] Sufficient gas for transaction?
-- [ ] No pending withdrawals?
-- [ ] Available balance covers withdrawal?
-
-## 11. Useful Debug Components
-
-### Full State Debugger
+### Dev panel
 
 ```tsx
 function OrderlyDebugPanel() {
   const { state } = useAccount();
-  const wsStatus = useWsStatus();
-  const { data: accountInfo } = useAccountInfo();
-
-  if (!import.meta.env.DEV) return null;
-
+  const ws = useWsStatus();
+  // mount this component only while developing (gate it however your app prefers)
   return (
-    <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded-lg text-xs">
-      <h3 className="font-bold mb-2">Debug Panel</h3>
-      <div>Account: {state.status}</div>
-      <div>WS: {wsStatus}</div>
-      <div>Balance: {accountInfo?.freeCollateral?.toFixed(2)} USDC</div>
+    <div style={{ position: 'fixed', right: 8, bottom: 8, fontSize: 11 }}>
+      <div>account: {state.status}</div>
+      <div>ws: {ws}</div>
     </div>
   );
 }
 ```
 
+## 6. Error Boundary
+
+For **component** errors, use the SDK's `ErrorBoundary` (`@orderly.network/react-app`):
+
+```tsx
+import { ErrorBoundary } from '@orderly.network/react-app';
+
+<ErrorBoundary fallback={<SomethingWentWrong />}>{children}</ErrorBoundary>;
+```
+
+Route-level errors (lazy-import failures, thrown loaders/actions) should be caught by your router's `errorElement`. `ErrorBoundary` is for the React tree.
+
+## Debugging Checklist
+
+### Nothing works / blank app
+
+- [ ] `OrderlyAppProvider` mounted with valid `brokerId` / `networkId`?
+- [ ] `usePreLoadData().done === true`?
+- [ ] `useWsStatus() === Connected`?
+
+### Private data empty
+
+- [ ] `state.status` is `SignedIn`?
+- [ ] Correct `networkId` for the chains shown?
+- [ ] WS `Connected`?
+
+### Order failing
+
+- [ ] `SignedIn`?
+- [ ] `metaState.errors === null`?
+- [ ] Quantity ≥ min, price in range?
+- [ ] Enough `freeCollateral`?
+
+### Deposit / withdraw failing
+
+- [ ] Allowance covers deposit amount (else `approve`)?
+- [ ] `withdraw` amount ≤ `maxAmount`?
+- [ ] `unsettledPnL` accounted for?
+- [ ] Wallet prompt not rejected?
+
 ## Related Skills
 
-- **orderly-sdk-dex-architecture** - Provider setup
-- **orderly-sdk-wallet-connection** - Wallet integration
-- **orderly-api-authentication** - Auth flow
-- **orderly-sdk-install-dependency** - Package installation
+- **orderly-sdk-dex-architecture** — provider wiring & config
+- **orderly-sdk-wallet-connection** — wallet integration
+- **orderly-api-authentication** — the sign-in / key flow
+- **orderly-sdk-install-dependency** — package installation & build setup

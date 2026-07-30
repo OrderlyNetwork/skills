@@ -5,47 +5,41 @@ description: Reference guide for using Orderly React SDK hooks - useOrderEntry, 
 
 # Orderly Network: SDK React Hooks Reference
 
-Complete reference for all hooks provided by `@orderly.network/hooks`.
+Reference for the hooks exported by `@orderly.network/hooks`. All signatures below are verified against the installed type definitions (SDK `3.1.x`).
 
 ## When to Use
 
 - Building React applications with Orderly
-- Quick reference for hook signatures
-- Understanding hook return values and parameters
+- Quick reference for hook signatures and return values
+- Implementing custom trading/account UI on top of the SDK
 
 ## Prerequisites
 
 - React 18+
-- `@orderly.network/hooks` installed
-- OrderlyConfigProvider wrapping your app
+- `@orderly.network/react-app` and `@orderly.network/hooks` installed
+- `OrderlyAppProvider` (from `@orderly.network/react-app`) wrapping your app
 
-## Installation
-
-```bash
-npm install @orderly.network/hooks @orderly.network/types
-
-# Or with yarn
-yarn add @orderly.network/hooks @orderly.network/types
-```
+> Hooks are provided by `@orderly.network/hooks`, but they only work inside `OrderlyAppProvider` from **`@orderly.network/react-app`** (not `@orderly.network/react`). `QueryClientProvider` is managed internally by `OrderlyAppProvider` — do not add your own.
 
 ## Setup
 
-```typescript
-import { OrderlyAppProvider } from '@orderly.network/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const queryClient = new QueryClient();
+```tsx
+import { OrderlyAppProvider } from '@orderly.network/react-app';
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <OrderlyAppProvider
-        brokerId="woofi_dex"
-        chainFilter={[42161, 421614]}
-      >
-        <YourApp />
-      </OrderlyAppProvider>
-    </QueryClientProvider>
+    <OrderlyAppProvider
+      brokerId="your_broker_id" // falls back to "demo" if unset
+      networkId="mainnet"
+      chainFilter={{
+        // keyed by network, each value: [{ id }]
+        mainnet: [{ id: 42161 }, { id: 10 }],
+        testnet: [{ id: 421614 }],
+      }}
+      defaultChain={{ mainnet: { id: 42161 } }}
+    >
+      <YourApp />
+    </OrderlyAppProvider>
   );
 }
 ```
@@ -56,80 +50,62 @@ function App() {
 
 ### useAccount
 
-Access account state and actions.
+Account instance + state. `state.status` is an `AccountStatusEnum` (from `@orderly.network/types`), not a string.
 
-```typescript
+```tsx
 import { useAccount } from '@orderly.network/hooks';
+import { AccountStatusEnum } from '@orderly.network/types';
 
-const { account, state } = useAccount();
+const { account, state, createOrderlyKey, createAccount, switchAccount } = useAccount();
 
-// State
-state.status: 'notConnected' | 'connecting' | 'connected' | 'disconnecting'
-state.address: string | null
-
-// Account
-account.accountId: string
-account.address: string
-account.connect(): Promise<void>
-account.disconnect(): Promise<void>
-account.setAddress(address, options): void
+// state.status values (AccountStatusEnum):
+//   NotConnected=0, Connected=1, NotSignedIn=2,
+//   SignedIn=3, EnableTrading=5, DisabledTrading=4
 
 // Example
 function AccountInfo() {
-  const { account, state } = useAccount();
+  const { account, state, createAccount, createOrderlyKey } = useAccount();
 
-  if (state.status !== 'connected') {
-    return <button onClick={() => account.connect()}>Connect</button>;
+  if (state.status < AccountStatusEnum.Connected) {
+    return <ConnectWalletButton />;
   }
-
-  return (
-    <div>
-      <p>Account: {account.accountId}</p>
-      <p>Address: {account.address}</p>
-      <button onClick={() => account.disconnect()}>Disconnect</button>
-    </div>
-  );
+  if (state.status < AccountStatusEnum.NotSignedIn) {
+    return <button onClick={() => createAccount()}>Create Account</button>;
+  }
+  if (state.status < AccountStatusEnum.EnableTrading) {
+    return <button onClick={() => createOrderlyKey()}>Enable Trading</button>;
+  }
+  return <p>Account: {account.accountId}</p>;
 }
 ```
 
 ### useWalletConnector
 
-Manage wallet connection.
+Wallet connection state and actions. The return is **flat** — `connect`, `disconnect`, `wallet`, etc. are top-level (not nested under `wallet`).
 
-```typescript
+```tsx
 import { useWalletConnector } from '@orderly.network/hooks';
 
-const wallet = useWalletConnector();
-
-// State
-wallet.connected: boolean
-wallet.connecting: boolean
-wallet.connectedChain: { id: string } | null
-wallet.address: string | null
-
-// Actions
-wallet.connect(): Promise<void>
-wallet.disconnect(): Promise<void>
-wallet.setChain(options): Promise<void>
+const {
+  connect, // (options?) => Promise<WalletState[]>
+  disconnect, // (options)  => Promise<any[]>
+  connecting, // boolean
+  wallet, // WalletState | null
+  connectedChain, // ConnectedChain | null
+  setChain, // ({ chainId }) => Promise<any>
+  chains, // available chains
+  settingChain, // boolean
+  namespace, // "evm" | "solana" | null
+} = useWalletConnector();
 
 // Example
 function WalletButton() {
-  const wallet = useWalletConnector();
-
-  if (wallet.connecting) {
-    return <span>Connecting...</span>;
+  const { connect, disconnect, connecting, wallet } = useWalletConnector();
+  if (connecting) return <span>Connecting…</span>;
+  if (wallet) {
+    return <button onClick={() => disconnect({})}>Disconnect</button>;
   }
-
-  if (wallet.connected) {
-    return (
-      <div>
-        <span>{wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}</span>
-        <button onClick={() => wallet.disconnect()}>Disconnect</button>
-      </div>
-    );
-  }
-
-  return <button onClick={() => wallet.connect()}>Connect Wallet</button>;
+  return <button onClick={() => connect({})}>Connect Wallet</button>;
 }
 ```
 
@@ -139,76 +115,57 @@ function WalletButton() {
 
 ### useOrderEntry
 
-Create and submit orders.
+Create and submit orders for a symbol. The active overload is `useOrderEntry(symbol, options?)`. Set order fields with `setValue` (fields: `side`, `order_type`, `order_price`, `order_quantity`, `reduce_only`, `tp_trigger_price`, `sl_price`, etc.), then call `submit()`.
 
-```typescript
-import { useOrderEntry, OrderSide, OrderType } from '@orderly.network/hooks';
+```tsx
+import { useOrderEntry } from '@orderly.network/hooks';
+import { OrderSide, OrderType } from '@orderly.network/types';
 
 const {
-  submit,
-  setValue,
-  getValue,
-  helper,
+  submit, // (opts?: { resetOnSuccess? }) => Promise<{ success, data, timestamp }>
+  setValue, // (key: keyof FullOrderState, value, options?) => void
+  setValues, // (Partial<FullOrderState>) => void
+  setValuesRaw, // merge setter that skips calculate() (for advanced TPSL)
   reset,
-  isSubmitting,
-  errors,
-} = useOrderEntry(symbol, options);
-
-// Options
-interface OrderEntryOptions {
-  initialOrder?: {
-    side?: OrderSide;
-    order_type?: OrderType;
-    price?: string;
-    order_quantity?: string;
-  };
-  onSuccess?: (result) => void;
-  onError?: (error) => void;
-}
-
-// Methods
-setValue(field: string, value: any): void
-getValue(field: string): any
-helper.validate(): Promise<boolean>
-submit(): Promise<void>
-reset(): void
+  resetErrors,
+  resetMetaState,
+  formattedOrder, // Partial<FullOrderState> — the computed order
+  maxQty,
+  maxQtys, // { maxBuy, maxSell }
+  estLiqPrice, // number | null
+  estLeverage, // number | null
+  currentPosition, // signed qty (+ long, - short)
+  freeCollateral,
+  symbolInfo, // API.SymbolExt
+  helper: { validate, validator /* @deprecated → validate */ },
+  metaState, // { dirty, submitted, validated, errors: OrderValidationResult | null }
+  isMutating, // submission in progress (NOT "isSubmitting")
+  markPrice,
+  symbolLeverage,
+} = useOrderEntry('PERP_BTC_USDC');
 
 // Example
 function OrderForm({ symbol }: { symbol: string }) {
-  const { submit, setValue, getValue, helper, isSubmitting } = useOrderEntry(symbol, {
-    initialOrder: {
-      side: OrderSide.BUY,
-      order_type: OrderType.LIMIT,
-    },
-  });
+  const { submit, setValue, helper, isMutating, metaState } = useOrderEntry(symbol);
+
+  useEffect(() => {
+    setValue('side', OrderSide.BUY);
+    setValue('order_type', OrderType.LIMIT);
+  }, [symbol]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const valid = await helper.validate();
-    if (valid) {
-      await submit();
-    }
+    const result = await helper.validate();
+    if (result) return; // validation errors are in metaState.errors
+    await submit({ resetOnSuccess: true });
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <select onChange={(e) => setValue('side', e.target.value)}>
-        <option value={OrderSide.BUY}>Buy</option>
-        <option value={OrderSide.SELL}>Sell</option>
-      </select>
-
-      <input
-        placeholder="Price"
-        onChange={(e) => setValue('price', e.target.value)}
-      />
-
-      <input
-        placeholder="Quantity"
-        onChange={(e) => setValue('order_quantity', e.target.value)}
-      />
-
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Placing...' : 'Place Order'}
+      <input placeholder="Price" onChange={(e) => setValue('order_price', e.target.value)} />
+      <input placeholder="Quantity" onChange={(e) => setValue('order_quantity', e.target.value)} />
+      <button type="submit" disabled={isMutating}>
+        {isMutating ? 'Placing…' : 'Place Order'}
       </button>
     </form>
   );
@@ -217,55 +174,56 @@ function OrderForm({ symbol }: { symbol: string }) {
 
 ### useOrderStream
 
-Stream orders in real-time.
+Stream orders with cancel/update actions. Returns a readonly tuple `[orders, actions]`.
 
-```typescript
-import { useOrderStream, OrderStatus } from '@orderly.network/hooks';
+```tsx
+import { useOrderStream } from '@orderly.network/hooks';
+import { OrderStatus } from '@orderly.network/types';
 
-const [orders, actions] = useOrderStream(options);
-
-// Options
-interface OrderStreamOptions {
-  status?: OrderStatus | OrderStatus[];
-  symbol?: string;
-  side?: OrderSide;
-}
-
-// Orders
-orders: Order[]
-
-// Order type
-interface Order {
-  order_id: number;
-  symbol: string;
-  side: 'BUY' | 'SELL';
-  order_type: string;
-  price: string;
-  order_qty: string;
-  filled_qty: string;
-  status: string;
-  created_at: number;
-  updated_at: number;
-}
-
-// Actions
-actions.cancelOrder(orderId: number | string): Promise<void>
-actions.cancelAllOrders(options?): Promise<void>
-actions.editOrder(orderId, updates): Promise<void>
+const [
+  orders,
+  {
+    total,
+    isLoading,
+    refresh,
+    loadMore,
+    cancelOrder, // (orderId, symbol?) => Promise<any>
+    cancelAllOrders, // () => Promise<[any, any, any]>
+    cancelAllPendingOrders, // (symbol?) => Promise<[any,any,any]>
+    cancelAllTPSLOrders, // (symbol?) => Promise<any[]>
+    cancelAlgoOrder, // (orderId, symbol?) => Promise<any>
+    updateOrder, // (orderId, OrderEntity) => Promise<any>
+    updateAlgoOrder,
+    updateTPSLOrder,
+    meta, // { total, current_page, records_per_page }
+    errors,
+    submitting,
+  },
+] = useOrderStream({
+  status: OrderStatus.INCOMPLETE, // use the enum, not the string 'OPEN'
+  symbol, // optional, omit for all symbols
+  side,
+  page,
+  size,
+  includes,
+  excludes, // CombineOrderType[], filter by type
+  dateRange: { from, to },
+});
 
 // Example
-function OpenOrders() {
-  const [orders, { cancelOrder, cancelAllOrders }] = useOrderStream({
+function OpenOrders({ symbol }: { symbol?: string }) {
+  const [orders, { cancelOrder, cancelAllPendingOrders, isLoading }] = useOrderStream({
     status: OrderStatus.INCOMPLETE,
+    symbol,
   });
 
   return (
     <div>
-      <button onClick={() => cancelAllOrders()}>Cancel All</button>
-      {orders.map((order) => (
-        <div key={order.order_id}>
-          {order.symbol} {order.side} {order.order_qty} @ {order.price}
-          <button onClick={() => cancelOrder(order.order_id)}>Cancel</button>
+      <button onClick={() => cancelAllPendingOrders(symbol)}>Cancel All</button>
+      {(orders ?? []).map((o) => (
+        <div key={o.order_id}>
+          {o.symbol} {o.side} {o.order_quantity} @ {o.order_price}
+          <button onClick={() => cancelOrder(o.order_id, o.symbol)}>✕</button>
         </div>
       ))}
     </div>
@@ -279,104 +237,69 @@ function OpenOrders() {
 
 ### usePositionStream
 
-Stream positions with real-time PnL.
+Stream positions with real-time PnL. Returns a **3-tuple** `[positions, calc, status]`, not a single object.
 
-```typescript
+```tsx
 import { usePositionStream } from '@orderly.network/hooks';
 
-const { rows, aggregated, totalUnrealizedROI, isLoading } = usePositionStream();
+const [
+  positions,   // { rows: API.PositionTPSLExt[], aggregated }
+  calc,         // accessor fns for margin/pnl fields (see below)
+  { isLoading },
+] = usePositionStream(symbol?, options?);
 
-// Return values
-rows: Position[]
-aggregated: {
-  totalUnrealizedPnl: number;
-  totalNotional: number;
-  totalCollateral: number;
-}
-totalUnrealizedROI: number
-isLoading: boolean
-
-// Position type
-interface Position {
-  symbol: string;
-  position_qty: number;
-  average_open_price: number;
-  mark_price: number;
-  unrealized_pnl: number;
-  unrealized_pnl_roi: number;
-  leverage: number;
-  liq_price: number;
-  mmr: number;
-  imr: number;
-  notional: number;
-}
+// positions.aggregated: aggregate stats across all rows
+// positions.rows[i]: { symbol, position_qty, average_open_price, mark_price,
+//   unrealized_pnl, unrealized_pnl_roi, leverage, liq_price, mmr, imr, notional, ... }
 
 // Example
 function PositionsSummary() {
-  const { rows, aggregated, totalUnrealizedROI } = usePositionStream();
-
+  const [positions, , { isLoading }] = usePositionStream();
   return (
-    <div>
-      <h3>Total PnL: ${aggregated?.totalUnrealizedPnl?.toFixed(2)}</h3>
-      <p>ROI: {(totalUnrealizedROI * 100).toFixed(2)}%</p>
-      <table>
-        {rows.map((pos) => (
-          <tr key={pos.symbol}>
-            <td>{pos.symbol}</td>
-            <td>{pos.position_qty}</td>
-            <td>${pos.unrealized_pnl.toFixed(2)}</td>
-          </tr>
-        ))}
-      </table>
-    </div>
+    <table>
+      {(positions?.rows ?? []).map((p) => (
+        <tr key={p.symbol}>
+          <td>{p.symbol}</td>
+          <td>{p.position_qty}</td>
+          <td>{p.unrealized_pnl?.toFixed(2)}</td>
+        </tr>
+      ))}
+    </table>
   );
 }
 ```
 
 ### useTPSLOrder
 
-Manage Take-Profit and Stop-Loss orders.
+Manage Take-Profit / Stop-Loss for a position. Returns `[computed, actions]`.
 
-```typescript
+```tsx
 import { useTPSLOrder } from '@orderly.network/hooks';
 
-const [computed, actions] = useTPSLOrder(position);
+const [computed, {
+  setValue,      // (key, number|string|boolean) => void
+  setValues,     // (Partial<ComputedAlgoOrder>) => void
+  submit,        // (params?: { accountId? }) => Promise<any>
+  validate,      // (otherErrors?) => Promise<AlgoOrderEntity>
+  deleteOrder,   // (orderId, symbol) => Promise<any>
+  errors,
+  metaState,     // { dirty, submitted, validated, errors }
+  isCreateMutating, isUpdateMutating,
+}] = useTPSLOrder(position, options?);
 
-// Position with position_qty and average_open_price
-interface PositionForTPSL {
-  symbol: string;
-  position_qty: number;
-  average_open_price: number;
-}
-
-// Computed values
-computed: {
-  tpTriggerPrice?: string;
-  slTriggerPrice?: string;
-  tpOffsetPercentage?: number;
-  slOffsetPercentage?: number;
-}
-
-// Actions
-actions.setValue(field: string, value: any): void
-actions.validate(): Promise<boolean>
-actions.submit(): Promise<void>
-actions.reset(): void
+// position: { symbol, average_open_price, position_qty, ... }
+// options:  { defaultOrder?, isEditing?, positionType? }
 
 // Example
-function TPSSForm({ position }: { position: Position }) {
-  const [_, { setValue, validate, submit }] = useTPSLOrder(position);
-
-  const handleSetTPSL = async () => {
-    setValue('tp_trigger_price', '3500');
-    setValue('sl_trigger_price', '2800');
-
-    if (await validate()) {
-      await submit();
-    }
+function TPSLForm({ position }) {
+  const [, { setValue, validate, submit, isCreateMutating }] = useTPSLOrder(position);
+  const handleSet = async () => {
+    setValue('positionTPSLOrderTPTriggerPrice', 71000);
+    setValue('positionTPSLOrderSLTriggerPrice', 69000);
+    await validate();
+    await submit();
   };
-
-  return <button onClick={handleSetTPSL}>Set TP/SL</button>;
+  return <button onClick={handleSet} disabled={isCreateMutating}>Set TP/SL</button>;
 }
 ```
 
@@ -386,157 +309,96 @@ function TPSSForm({ position }: { position: Position }) {
 
 ### useOrderbookStream
 
-Real-time orderbook data.
+Real-time orderbook.
 
-```typescript
+```tsx
 import { useOrderbookStream } from '@orderly.network/hooks';
 
-const { asks, bids, isLoading } = useOrderbookStream(symbol);
-
-// Return values
-asks: [string, string][]  // [price, quantity] - ascending by price
-bids: [string, string][]  // [price, quantity] - descending by price
-isLoading: boolean
-
-// Example
-function Orderbook({ symbol }: { symbol: string }) {
-  const { asks, bids } = useOrderbookStream(symbol);
-
-  return (
-    <div className="orderbook">
-      <div className="asks">
-        {asks.slice(0, 10).map(([price, qty], i) => (
-          <div key={i} className="ask-row">
-            <span className="price">{price}</span>
-            <span className="qty">{qty}</span>
-          </div>
-        ))}
-      </div>
-      <div className="bids">
-        {bids.slice(0, 10).map(([price, qty], i) => (
-          <div key={i} className="bid-row">
-            <span className="price">{price}</span>
-            <span className="qty">{qty}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const { asks, bids, isLoading } = useOrderbookStream(symbol?, options?);
+// asks/bids: [price, quantity][] (number tuples)
 ```
 
-### useMarkPrice
+### useMarkPrice / useMarkPriceBySymbol
 
-Current mark price for a symbol.
-
-```typescript
-import { useMarkPrice } from '@orderly.network/hooks';
-
-const markPrice = useMarkPrice(symbol);
-// Returns: number
-
-// Example
-function PriceDisplay({ symbol }: { symbol: string }) {
-  const markPrice = useMarkPrice(symbol);
-  return <span>${markPrice?.toFixed(2)}</span>;
-}
+```tsx
+import { useMarkPrice, useMarkPriceBySymbol } from '@orderly.network/hooks';
+const allMarkPrices = useMarkPrice(); // map of symbol -> price
+const markPrice = useMarkPriceBySymbol(symbol); // number | undefined for one symbol
 ```
 
 ### useTickerStream
 
-24-hour ticker statistics.
+24h ticker stats for all symbols.
 
-```typescript
+```tsx
 import { useTickerStream } from '@orderly.network/hooks';
-
-const ticker = useTickerStream(symbol);
-
-// Ticker type
-interface Ticker {
-  symbol: string;
-  last_price: string;
-  high_24h: string;
-  low_24h: string;
-  volume_24h: string;
-  quote_volume_24h: string;
-  open: string;
-  price_change_24h: string;
-  price_change_percent_24h: string;
-}
+const tickers = useTickerStream(); // Record<symbol, Ticker> | undefined
+// Ticker: { symbol, last_price, high_24h, low_24h, volume_24h,
+//   quote_volume_24h, open, price_change_percent_24h, ... }
 ```
 
-### useSymbolInfo
+### useSymbolInfo / useSymbolsInfo
 
-Get trading rules for a symbol.
+Trading rules for a symbol.
 
-```typescript
-import { useSymbolInfo } from '@orderly.network/hooks';
+```tsx
+import { useSymbolInfo, useSymbolsInfo } from '@orderly.network/hooks';
+const symbolInfo = useSymbolInfo(symbol); // API.SymbolExt
+// { symbol, base, quote, base_min, base_max, quote_tick, price_range, leverage_max, ... }
+```
 
-const symbolInfo = useSymbolInfo(symbol);
+### useMarkets / useMarketList
 
-// Symbol info type
-interface SymbolInfo {
-  symbol: string;
-  base_currency: string;
-  quote_currency: string;
-  base_min: number;
-  base_max: number;
-  base_tick: number;
-  quote_min: number;
-  quote_max: number;
-  quote_tick: number;
-  min_notional: number;
-  price_range: number;
-  leverage_max: number;
-}
+Market metadata listings.
+
+```tsx
+import { useMarkets, useMarketList } from '@orderly.network/hooks';
+const markets = useMarkets(); // API.MarketInfo[] | undefined
 ```
 
 ---
 
-## Balance Hooks
+## Balance & Collateral Hooks
 
 ### useCollateral
 
-Account collateral information.
+Account collateral and portfolio value. Takes `{ dp }` (decimal places).
 
-```typescript
+```tsx
 import { useCollateral } from '@orderly.network/hooks';
 
-const { totalCollateral, freeCollateral, availableBalance } = useCollateral({ dp: 2 });
-
-// Return values
-totalCollateral: number     // Total account value
-freeCollateral: number      // Available for new positions
-availableBalance: number    // Free balance
+const {
+  totalCollateral, // total account collateral value
+  freeCollateral, // available for new positions
+  freeCollateralUSDCOnly, // free collateral in USDC only
+  totalValue, // number | null — total portfolio value
+  availableBalance, // withdrawable
+  unsettledPnL, // unrealized PnL across positions
+  holding, // API.Holding[]
+  accountInfo, // API.AccountInfo
+  usdcHolding,
+} = useCollateral({ dp: 4 });
 
 // Example
 function AccountSummary() {
   const { totalCollateral, freeCollateral } = useCollateral({ dp: 2 });
-
   return (
-    <div>
-      <p>Total: ${totalCollateral}</p>
-      <p>Available: ${freeCollateral}</p>
-    </div>
+    <p>
+      Total: {totalCollateral} · Free: {freeCollateral}
+    </p>
   );
 }
 ```
 
-### useBalance
+> There is **no `useBalance` hook**. For per-token holdings use `useCollateral().holding`, or `useHoldingStream` for the real-time holding feed.
 
-Token balance on Orderly.
+### useHoldingStream
 
-```typescript
-import { useBalance } from '@orderly.network/hooks';
+Real-time holdings feed.
 
-const balance = useBalance();
-// Returns: { USDC: string, USDT: string, ... }
-
-// Example
-function BalanceDisplay() {
-  const balance = useBalance();
-  return <span>USDC: {balance?.USDC || '0'}</span>;
-}
+```tsx
+import { useHoldingStream } from '@orderly.network/hooks';
+const holdings = useHoldingStream(); // API.Holding[] | undefined
 ```
 
 ---
@@ -545,153 +407,124 @@ function BalanceDisplay() {
 
 ### useChains
 
-Get supported chains.
+Supported chains. Returns `[chains, helpers]`.
 
-```typescript
+```tsx
 import { useChains } from '@orderly.network/hooks';
-
 const [chains, { findByChainId }] = useChains();
+// chains: API.Chain[] (id, name, network, chain_id, explorer, ...)
+```
 
-// Chain type
-interface Chain {
-  id: number;
-  name: string;
-  network: string;
-  chain_id: string;
-  explorer: string;
-}
+### useMarginRatio
 
-// Example
-function ChainSelector() {
-  const [chains] = useChains();
-
-  return (
-    <select>
-      {chains.map((chain) => (
-        <option key={chain.id} value={chain.id}>
-          {chain.name}
-        </option>
-      ))}
-    </select>
-  );
-}
+```tsx
+import { useMarginRatio } from '@orderly.network/hooks';
+const { currentLeverage, marginRatio, mmr, maintenanceMargin } = useMarginRatio();
 ```
 
 ---
 
-## Deposit/Withdraw Hooks
+## Deposit / Withdraw Hooks
 
 ### useDeposit
 
-Handle deposits.
+Handle deposits (allowance + deposit). `deposit()` takes no argument — it uses the `quantity` set via `setQuantity`.
 
-```typescript
+```tsx
 import { useDeposit } from '@orderly.network/hooks';
 
 const {
-  balance,
-  allowance,
-  approve,
-  deposit,
-  depositFee,
-  setQuantity,
-  fetchBalance,
-} = useDeposit(options);
-
-// Options
-interface DepositOptions {
-  address: string;      // Token contract address
-  decimals: number;     // Token decimals
-  srcToken: string;     // Token symbol
-  srcChainId: number;   // Source chain ID
-}
+  balance,              // string | null — source wallet balance
+  allowance,            // string — ERC-20 allowance
+  depositFee,           // bigint — in wei
+  isNativeToken,
+  dst,                  // { symbol, address, decimals, chainId, network }
+  targetChain,          // API.Chain
+  quantity, setQuantity,
+  approve,              // (amount?) => Promise<void>
+  deposit,              // () => Promise<any>
+  fetchBalance,         // (address, decimals?) => Promise<string>
+  fetchBalances,        // (tokens) => Promise<Record<string,string>>
+  balanceRevalidating, allowanceRevalidating, depositFeeRevalidating,
+} = useDeposit({
+  // all optional
+  srcChainId?, srcToken?, dstToken?, address?, decimals?,
+  crossChainRouteAddress?, depositorAddress?,
+});
 
 // Example
 function DepositUSDC() {
-  const { balance, allowance, approve, deposit, isApproving, isDepositing } = useDeposit({
-    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    decimals: 6,
-    srcToken: 'USDC',
-    srcChainId: 42161,
+  const { balance, allowance, approve, deposit, setQuantity } = useDeposit({
+    srcChainId: 42161, srcToken: 'USDC',
+    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6,
   });
-
-  const amount = '100';
-
   const handleDeposit = async () => {
-    if (parseFloat(allowance) < 100) {
-      await approve();
-    }
-    await deposit(amount);
+    setQuantity('100');
+    if (Number(allowance) < 100) await approve();
+    await deposit();
   };
-
-  return (
-    <button onClick={handleDeposit} disabled={isApproving || isDepositing}>
-      Deposit
-    </button>
-  );
+  return <button onClick={handleDeposit}>Deposit</button>;
 }
 ```
 
 ### useWithdraw
 
-Handle withdrawals.
+Handle withdrawals. `withdraw()` takes the full inputs object.
 
-```typescript
+```tsx
 import { useWithdraw } from '@orderly.network/hooks';
 
-const { withdraw, isLoading, withdrawFee } = useWithdraw();
-
-// Withdraw options
-interface WithdrawOptions {
-  symbol: string;
-  amount: string;
-  address: string; // Destination address
-  chainId: number;
-  network: string;
-}
+const {
+  dst,                  // { symbol, address, decimals, chainId, network }
+  withdraw,             // (inputs) => Promise<any>
+  maxAmount,            // number — max withdrawable (use this)
+  unsettledPnL, availableBalance,
+} = useWithdraw({ srcChainId?, token?, decimals? });
 
 // Example
-const { withdraw, isLoading } = useWithdraw();
-
 await withdraw({
-  symbol: 'USDC',
-  amount: '100',
-  address: '0x...',
   chainId: 42161,
-  network: 'arbitrum',
+  token: 'USDC',
+  amount: '100',
+  allowCrossChainWithdraw: false,
+  receiver: '0x...',   // optional
 });
 ```
 
+> `availableWithdraw` is deprecated — use `maxAmount`.
+
 ---
 
-## Leverage Hook
+## Leverage Hooks
 
-### useLeverage
+Account-level leverage (`useLeverage`) is **not** symbol-scoped. Use `useSymbolLeverage` / `useMaxLeverage` for a specific symbol.
 
-Get and set leverage.
+```tsx
+import { useLeverage, useSymbolLeverage, useMaxLeverage } from '@orderly.network/hooks';
 
-```typescript
-import { useLeverage } from '@orderly.network/hooks';
+// Account-level
+const {
+  update, // ({ leverage }) => Promise<{ max_leverage } | undefined>
+  curLeverage,
+  maxLeverage,
+  leverageLevers,
+  isLoading,
+} = useLeverage();
 
-const { leverage, maxLeverage, setLeverage, isLoading } = useLeverage(symbol);
+// Symbol-level
+const { maxLeverage, update, isLoading } = useSymbolLeverage(symbol);
 
-// Return values
-leverage: number
-maxLeverage: number
-setLeverage(value: number): Promise<void>
-isLoading: boolean
+const maxLev = useMaxLeverage(symbol); // number | "-"
 
 // Example
 function LeverageControl({ symbol }: { symbol: string }) {
-  const { leverage, maxLeverage, setLeverage } = useLeverage(symbol);
-
+  const { maxLeverage, update, isLoading } = useSymbolLeverage(symbol);
   return (
     <input
       type="range"
       min={1}
       max={maxLeverage}
-      value={leverage}
-      onChange={(e) => setLeverage(parseInt(e.target.value))}
+      onChange={(e) => update({ leverage: parseInt(e.target.value), symbol })}
     />
   );
 }
@@ -701,53 +534,38 @@ function LeverageControl({ symbol }: { symbol: string }) {
 
 ## Common Patterns
 
-### Combined Trading Interface
+### Trading Interface
 
-```typescript
+```tsx
 import {
   useAccount,
   useOrderEntry,
   usePositionStream,
   useOrderbookStream,
   useCollateral,
-  OrderSide,
-  OrderType,
 } from '@orderly.network/hooks';
+import { AccountStatusEnum, OrderSide, OrderType } from '@orderly.network/types';
 
 function TradingInterface({ symbol }: { symbol: string }) {
   const { state } = useAccount();
-  const { rows: positions } = usePositionStream();
+  const [positions] = usePositionStream();
   const { asks, bids } = useOrderbookStream(symbol);
-  const { freeCollateral } = useCollateral();
-  const { submit, setValue, getValue, helper } = useOrderEntry(symbol);
+  const { freeCollateral } = useCollateral({ dp: 2 });
+  const { submit, setValue, helper, isMutating, formattedOrder } = useOrderEntry(symbol);
 
-  if (state.status !== 'connected') {
-    return <ConnectWallet />;
-  }
+  if (state.status < AccountStatusEnum.Connected) return <ConnectWallet />;
 
-  return (
-    <div className="trading-interface">
-      <div className="left-panel">
-        <Orderbook asks={asks} bids={bids} />
-      </div>
-      <div className="center-panel">
-        <OrderForm
-          submit={submit}
-          setValue={setValue}
-          getValue={getValue}
-          validate={helper.validate}
-          freeCollateral={freeCollateral}
-        />
-        <PositionsList positions={positions} />
-      </div>
-    </div>
-  );
+  // ...render orderbook, order form, positions...
 }
 ```
 
+> **Tip**: For a full trading UI without writing this by hand, use `<TradingPage>` from `@orderly.network/trading` (see `orderly-sdk-page-components`). The hooks above are for custom UI.
+
 ## Related Skills
 
-- **orderly-ui-components** - Pre-built UI components
-- **orderly-trading-orders** - Order management details
-- **orderly-positions-tpsl** - Position management
+- **orderly-sdk-ui-components** - Pre-built UI components
+- **orderly-sdk-trading-workflows** - End-to-end trading flows
+- **orderly-sdk-wallet-connection** - Wallet + account state machine
+- **orderly-trading-orders** - Order management details (REST)
+- **orderly-positions-tpsl** - Position management (REST)
 - **orderly-websocket-streaming** - Underlying WebSocket implementation

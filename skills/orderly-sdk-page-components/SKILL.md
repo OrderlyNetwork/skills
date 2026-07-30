@@ -1,534 +1,326 @@
 ---
 name: orderly-sdk-page-components
-description: Use pre-built page components from Orderly SDK to quickly assemble complete DEX pages (TradingPage, Portfolio, Markets, Leaderboard, etc.)
+description: Use pre-built page components from Orderly SDK to quickly assemble complete DEX pages (TradingPage, Portfolio modules, Markets, Leaderboard, Vaults, Points, Affiliate)
 ---
 
 # Orderly Network: SDK Page Components
 
-Pre-built, full-featured page components for building a complete DEX. These components handle responsive design (desktop/mobile), state management, and UI out of the box.
+Pre-built, full-featured page components for building a complete DEX. Each page handles responsive design (desktop/mobile), state, and UI. In the reference template every page is **lazy-loaded** from `app/pages/...` and wrapped in a shared `Scaffold` layout.
 
 ## When to Use
 
 - Building a complete DEX quickly
 - Using pre-built, production-ready pages
-- Implementing standard DEX pages (trading, portfolio, markets)
-- Need responsive layouts out of the box
+- Implementing standard DEX pages (trading, portfolio, markets, leaderboard)
 
 ## Prerequisites
 
-- Orderly SDK packages installed (`@orderly.network/trading`, `@orderly.network/portfolio`, `@orderly.network/markets`)
+- Orderly SDK packages installed (see `orderly-sdk-install-dependency`)
 - Providers configured (see `orderly-sdk-dex-architecture`)
-- Router set up (React Router)
+- React Router v7 (`react-router-dom`)
 
 ## Overview
 
-| Component                       | Package                                | Description                                             |
-| ------------------------------- | -------------------------------------- | ------------------------------------------------------- |
-| `TradingPage`                   | `@orderly.network/trading`             | Full trading interface with chart, orderbook, positions |
-| `OverviewModule.OverviewPage`   | `@orderly.network/portfolio`           | Portfolio dashboard with assets, performance            |
-| `PositionsModule.PositionsPage` | `@orderly.network/portfolio`           | Positions list with history, liquidations               |
-| `OrdersModule.OrdersPage`       | `@orderly.network/portfolio`           | Orders list (open, pending, filled)                     |
-| `AssetsModule.AssetsPage`       | `@orderly.network/portfolio`           | Asset balances, deposit/withdraw                        |
-| `HistoryModule.HistoryPage`     | `@orderly.network/portfolio`           | Trade history, funding, settlements                     |
-| `MarketsHomePage`               | `@orderly.network/markets`             | Markets listing with stats                              |
-| `LeaderboardPage`               | `@orderly.network/trading-leaderboard` | Trading competition leaderboard                         |
-| `TradingRewardsPage`            | `@orderly.network/trading-rewards`     | Rewards program page                                    |
-| `Dashboard`                     | `@orderly.network/affiliate`           | Affiliate/referral dashboard                            |
+| Component                         | Package                                | Description                                              |
+| --------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| `TradingPage`                     | `@orderly.network/trading`             | Full trading interface (chart, orderbook, order entry)   |
+| `OverviewModule.OverviewPage`     | `@orderly.network/portfolio`           | Portfolio dashboard                                      |
+| `PositionsModule.PositionsPage`   | `@orderly.network/portfolio`           | Positions + history                                      |
+| `OrdersModule.OrdersPage`         | `@orderly.network/portfolio`           | Orders (open, pending, filled)                           |
+| `AssetsModule.AssetsPage`         | `@orderly.network/portfolio`           | Balances, deposit/withdraw                               |
+| `HistoryModule.HistoryPage`       | `@orderly.network/portfolio`           | Trade / funding / settlement history                     |
+| `APIManagerModule.APIManagerPage` | `@orderly.network/portfolio`           | API key management                                       |
+| `FeeTierModule.FeeTierPage`       | `@orderly.network/portfolio`           | Fee tier overview                                        |
+| `SettingModule.SettingPage`       | `@orderly.network/portfolio`           | Account settings                                         |
+| `MarketsHomePage`                 | `@orderly.network/markets`             | Markets listing + funding comparison                     |
+| `GeneralLeaderboardWidget`        | `@orderly.network/trading-leaderboard` | Trading competition leaderboard                          |
+| `PointSystemPage`                 | `@orderly.network/trading-points`      | Points/merits program                                    |
+| `VaultsPage`                      | `@orderly.network/vaults`              | Vault/Earn products                                      |
+| `Dashboard.DashboardPage`         | `@orderly.network/affiliate`           | Affiliate/referral dashboard (inside `ReferralProvider`) |
+
+> **Names matter.** `GeneralLeaderboardWidget` (not `LeaderboardPage`), `PointSystemPage` (not `TradingRewardsPage`; there is no `trading-rewards` package), and `VaultsPage`. The affiliate page is `Dashboard.DashboardPage`, not a bare `Dashboard`.
+
+## The Scaffold Wrapper Pattern
+
+Every route layout in the reference template wraps its `<Outlet/>` in `<Scaffold>` from `@orderly.network/ui-scaffold`, passing nav/footer config (built once in `useOrderlyConfig()`) and a `routerAdapter`.
+
+```tsx
+// app/pages/perp/Layout.tsx
+import { Outlet } from 'react-router-dom';
+import { Scaffold } from '@orderly.network/ui-scaffold';
+import { useOrderlyConfig } from '@/utils/config';
+import { useNav } from '@/hooks/useNav';
+
+export default function PerpLayout() {
+  const config = useOrderlyConfig();
+  const { onRouteChange } = useNav();
+  return (
+    <Scaffold
+      mainNavProps={config.scaffold.mainNavProps}
+      footerProps={config.scaffold.footerProps}
+      bottomNavProps={config.scaffold.bottomNavProps}
+      routerAdapter={{ onRouteChange, currentPath: '/' }}
+    >
+      <Outlet />
+    </Scaffold>
+  );
+}
+```
+
+Each section (`perp`, `portfolio`, `markets`, `leaderboard`, `rewards`, `vaults`, `swap`, `points`) has its own `Layout.tsx` using this pattern.
 
 ## 1. TradingPage
 
-The main trading interface with TradingView chart, orderbook, order entry, positions, and orders.
-
-### Import
+Rendered by `app/pages/perp/Symbol.tsx` (route `/perp/:symbol`). `tradingViewConfig` and `sharePnLConfig` come from `useOrderlyConfig()` (which builds them from the active theme + `.env` config).
 
 ```tsx
-import { TradingPage } from '@orderly.network/trading';
-```
-
-### Props
-
-```tsx
-interface TradingPageProps {
-  // Required: Trading symbol (e.g., "PERP_ETH_USDC")
-  symbol: string;
-
-  // Callback when user changes symbol
-  onSymbolChange?: (symbol: API.Symbol) => void;
-
-  // TradingView chart configuration
-  tradingViewConfig: {
-    scriptSRC?: string; // Path to TradingView library
-    library_path: string; // Path to charting_library folder
-    customCssUrl?: string; // Custom CSS for chart
-    colorConfig?: {
-      chartBG?: string;
-      upColor?: string;
-      downColor?: string;
-      pnlUpColor?: string;
-      pnlDownColor?: string;
-    };
-  };
-
-  // PnL sharing configuration
-  sharePnLConfig?: {
-    backgroundImages?: string[]; // Background images for share cards
-    color?: string;
-    profitColor?: string;
-    lossColor?: string;
-    brandColor?: string;
-  };
-
-  // Disable specific features
-  disableFeatures?: TradingFeatures[];
-
-  // Override specific sections with custom components
-  overrideFeatures?: Record<TradingFeatures, ReactNode>;
-}
-
-enum TradingFeatures {
-  Sider = 'sider',
-  TopNavBar = 'topNavBar',
-  Footer = 'footer',
-  Header = 'header',
-  Kline = 'kline',
-  OrderBook = 'orderBook',
-  TradeHistory = 'tradeHistory',
-  Positions = 'positions',
-  Orders = 'orders',
-}
-```
-
-### Usage Example
-
-```tsx
+// app/pages/perp/Symbol.tsx
 import { useCallback, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { TradingPage } from '@orderly.network/trading';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { API } from '@orderly.network/types';
+import { TradingPage } from '@orderly.network/trading';
+import { useOrderlyConfig } from '@/utils/config';
 
-export default function TradingRoute() {
-  const { symbol: paramSymbol } = useParams();
-  const [symbol, setSymbol] = useState(paramSymbol || 'PERP_ETH_USDC');
+export default function PerpSymbol() {
+  const params = useParams();
+  const [symbol, setSymbol] = useState(params.symbol!);
+  const config = useOrderlyConfig();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const onSymbolChange = useCallback(
     (data: API.Symbol) => {
       setSymbol(data.symbol);
-      navigate(`/perp/${data.symbol}`);
+      const qs = searchParams.toString();
+      navigate(`/perp/${data.symbol}${qs ? `?${qs}` : ''}`);
     },
-    [navigate]
+    [navigate, searchParams]
   );
 
   return (
-    <TradingPage
-      symbol={symbol}
-      onSymbolChange={onSymbolChange}
-      tradingViewConfig={{
-        scriptSRC: '/tradingview/charting_library/charting_library.js',
-        library_path: '/tradingview/charting_library/',
-      }}
-      sharePnLConfig={{
-        backgroundImages: ['/pnl-bg-1.png', '/pnl-bg-2.png'],
-      }}
-    />
-  );
-}
-```
-
-### TradingView Setup
-
-1. Download TradingView charting library from TradingView
-2. Place in `public/tradingview/charting_library/`
-3. Configure paths in `tradingViewConfig`
-
-## 2. Portfolio Pages
-
-Portfolio is organized into modules, each containing a complete page component.
-
-### Import
-
-```tsx
-import {
-  OverviewModule,
-  PositionsModule,
-  OrdersModule,
-  AssetsModule,
-  HistoryModule,
-} from '@orderly.network/portfolio';
-```
-
-### OverviewModule.OverviewPage
-
-Portfolio overview with assets summary, performance chart, and recent activity.
-
-```tsx
-interface OverviewPageProps {
-  hideAffiliateCard?: boolean; // Hide affiliate promotion card
-  hideTraderCard?: boolean; // Hide trader stats card
-}
-
-// Usage
-import { OverviewModule } from '@orderly.network/portfolio';
-
-function PortfolioOverview() {
-  return <OverviewModule.OverviewPage hideAffiliateCard={false} hideTraderCard={false} />;
-}
-```
-
-**Sections included:**
-
-- Asset summary widget
-- Asset allocation chart
-- Performance metrics
-- Funding history
-- Distribution history
-
-### PositionsModule.PositionsPage
-
-Current and historical positions with liquidation history.
-
-```tsx
-import { PositionsModule } from '@orderly.network/portfolio';
-
-function PositionsRoute() {
-  return <PositionsModule.PositionsPage />;
-}
-```
-
-**Tabs included:**
-
-- Positions (current open positions)
-- Position History
-- Liquidation History
-
-### OrdersModule.OrdersPage
-
-Order management with open, pending, and filled orders.
-
-```tsx
-interface OrdersPageProps {
-  sharePnLConfig?: SharePnLConfig; // For sharing closed PnL
-}
-
-import { OrdersModule } from '@orderly.network/portfolio';
-
-function OrdersRoute() {
-  return (
-    <OrdersModule.OrdersPage
-      sharePnLConfig={{
-        backgroundImages: ['/pnl-bg-1.png'],
-      }}
-    />
-  );
-}
-```
-
-**Features:**
-
-- Open orders with cancel functionality
-- Pending orders (TP/SL)
-- Order history with download
-
-### AssetsModule.AssetsPage
-
-Asset management with deposit/withdraw functionality.
-
-```tsx
-import { AssetsModule } from '@orderly.network/portfolio';
-
-function AssetsRoute() {
-  return <AssetsModule.AssetsPage />;
-}
-```
-
-**Features:**
-
-- USDC balance display
-- Deposit/withdraw buttons
-- Cross-chain transfers
-- Transaction history
-
-### HistoryModule.HistoryPage
-
-Complete trade and transaction history.
-
-```tsx
-import { HistoryModule } from '@orderly.network/portfolio';
-
-function HistoryRoute() {
-  return <HistoryModule.HistoryPage />;
-}
-```
-
-**Tabs included:**
-
-- Trade history
-- Funding payments
-- Settlements
-
-### Complete Portfolio Layout
-
-```tsx
-import { Outlet, NavLink } from 'react-router-dom';
-import {
-  OverviewModule,
-  PositionsModule,
-  OrdersModule,
-  AssetsModule,
-  HistoryModule,
-} from '@orderly.network/portfolio';
-
-// Portfolio layout with navigation
-function PortfolioLayout() {
-  return (
-    <div className="portfolio-container">
-      <nav className="portfolio-nav">
-        <NavLink to="/portfolio">Overview</NavLink>
-        <NavLink to="/portfolio/positions">Positions</NavLink>
-        <NavLink to="/portfolio/orders">Orders</NavLink>
-        <NavLink to="/portfolio/assets">Assets</NavLink>
-        <NavLink to="/portfolio/history">History</NavLink>
-      </nav>
-      <main className="portfolio-content">
-        <Outlet />
-      </main>
+    <div className="h-full">
+      <TradingPage
+        symbol={symbol}
+        onSymbolChange={onSymbolChange}
+        tradingViewConfig={config.tradingPage.tradingViewConfig}
+        sharePnLConfig={config.tradingPage.sharePnLConfig}
+      />
     </div>
   );
 }
+```
 
-// Router configuration
-const portfolioRoutes = [
-  {
-    path: 'portfolio',
-    element: <PortfolioLayout />,
-    children: [
-      { index: true, element: <OverviewModule.OverviewPage /> },
-      { path: 'positions', element: <PositionsModule.PositionsPage /> },
-      { path: 'orders', element: <OrdersModule.OrdersPage /> },
-      { path: 'assets', element: <AssetsModule.AssetsPage /> },
-      { path: 'history', element: <HistoryModule.HistoryPage /> },
-    ],
-  },
-];
+### tradingViewConfig
+
+```tsx
+tradingViewConfig: {
+  scriptSRC: string;      // /tradingview/charting_library/charting_library.js
+  library_path: string;   // /tradingview/charting_library/
+  customCssUrl?: string;  // /tradingview/chart.css
+  colorConfig?: Partial<TradingViewColorConfig>; // only in legacy mode
+}
+```
+
+Build it with `createTradingViewConfig(themeSource)` (see `orderly-sdk-theming`). TradingView library files must be placed in `public/tradingview/charting_library/`.
+
+> Route is `/perp/:symbol`, not `/trade`. The index route `/perp` redirects to a default symbol.
+
+## 2. Portfolio Pages
+
+Portfolio is organized into modules, each with a `…Page` export. The template routes: `portfolio` (index), `positions`, `orders`, `assets`, `api-key`, `fee`, `history`, `setting`.
+
+```tsx
+import {
+  OverviewModule, PositionsModule, OrdersModule, AssetsModule,
+  HistoryModule, APIManagerModule, FeeTierModule, SettingModule,
+} from '@orderly.network/portfolio';
+
+<OverviewModule.OverviewPage />
+<PositionsModule.PositionsPage />
+<OrdersModule.OrdersPage sharePnLConfig={config.tradingPage.sharePnLConfig} />
+<AssetsModule.AssetsPage />
+<HistoryModule.HistoryPage />
+<APIManagerModule.APIManagerPage />
+<FeeTierModule.FeeTierPage />
+<SettingModule.SettingPage />
+```
+
+Portfolio routes (lazy-loaded page components, wrapped by a shared `PortfolioLayout` using `Scaffold`):
+
+```tsx
+{
+  path: 'portfolio',
+  element: <PortfolioLayout />,
+  children: [
+    { index: true, element: <PortfolioIndex /> },        // OverviewModule.OverviewPage
+    { path: 'positions', element: <PortfolioPositions /> },
+    { path: 'orders', element: <PortfolioOrders /> },
+    { path: 'assets', element: <PortfolioAssets /> },
+    { path: 'api-key', element: <PortfolioApiKey /> },   // APIManagerModule.APIManagerPage
+    { path: 'fee', element: <PortfolioFee /> },          // FeeTierModule.FeeTierPage
+    { path: 'history', element: <PortfolioHistory /> },
+    { path: 'setting', element: <PortfolioSetting /> },  // SettingModule.SettingPage
+  ],
+}
 ```
 
 ## 3. MarketsHomePage
 
-Markets overview with all trading pairs, stats, and funding rates.
-
-### Import
-
 ```tsx
 import { MarketsHomePage } from '@orderly.network/markets';
+
+<MarketsHomePage
+  comparisonProps={{
+    // name + icon shown in the funding-comparison list (NOT an exchanges array)
+    exchangesName: import.meta.env.VITE_ORDERLY_BROKER_NAME,
+    exchangesIconSrc: '/logo-secondary.webp', // optional
+  }}
+  onSymbolChange={(symbol) => navigate(`/perp/${symbol.symbol}`)}
+/>;
 ```
 
-### Props
+> `comparisonProps` takes `exchangesName` and `exchangesIconSrc` (both optional), **not** an `exchanges: string[]` array.
+
+## 4. Leaderboard
 
 ```tsx
-interface MarketsHomePageProps {
-  // Current symbol (for highlighting)
-  symbol?: string;
+import { GeneralLeaderboardWidget } from '@orderly.network/trading-leaderboard';
 
-  // Callback when user clicks a symbol
-  onSymbolChange?: (symbol: API.Symbol) => void;
-
-  // Funding comparison configuration
-  comparisonProps?: {
-    exchanges?: string[]; // Exchanges to compare funding rates
-  };
-
-  // Custom class name
-  className?: string;
-}
-```
-
-### Usage
-
-```tsx
-import { useNavigate } from 'react-router-dom';
-import { MarketsHomePage } from '@orderly.network/markets';
-
-function MarketsRoute() {
-  const navigate = useNavigate();
-
+export default function LeaderboardIndex() {
   return (
-    <MarketsHomePage
-      onSymbolChange={(symbol) => navigate(`/perp/${symbol.symbol}`)}
-      comparisonProps={{
-        exchanges: ['binance', 'okx', 'bybit'],
-      }}
-    />
+    <div className="oui-py-6 oui-px-4 lg:oui-px-6">
+      <GeneralLeaderboardWidget />
+    </div>
   );
 }
 ```
 
-**Tabs included:**
-
-- Markets (all trading pairs with 24h stats)
-- Funding (funding rate comparison across exchanges)
-
-## 4. LeaderboardPage
-
-Trading competition leaderboard with campaigns and rankings.
-
-### Import
+## 5. Points / Rewards
 
 ```tsx
-import { LeaderboardPage } from '@orderly.network/trading-leaderboard';
-```
+import { PointSystemPage } from '@orderly.network/trading-points';
+import { RouteOption } from '@orderly.network/types';
 
-### Usage
-
-```tsx
-import { LeaderboardPage } from '@orderly.network/trading-leaderboard';
-
-function LeaderboardRoute() {
-  return <LeaderboardPage hideCampaignsBanner={false} />;
+export default function PointsIndex() {
+  const navigate = useNavigate();
+  const onRouteChange = (p: RouteOption) => {
+    if (p.href === '/perp') navigate(`/perp/${getSymbol()}`);
+  };
+  return <PointSystemPage onRouteChange={onRouteChange} />;
 }
 ```
 
-**Sections included:**
-
-- Active campaigns banner
-- Rewards summary
-- General leaderboard rankings
-- Campaign-specific leaderboards
-- Trading rules
-
-## 5. Router Setup
-
-### Complete Router Example
+## 6. Vaults
 
 ```tsx
-import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import App from './App';
-
-// Lazy load pages for better performance
-const TradingPage = lazy(() => import('./pages/Trading').then((m) => ({ default: m.default })));
-const PortfolioOverview = lazy(() =>
-  import('@orderly.network/portfolio').then((m) => ({
-    default: m.OverviewModule.OverviewPage,
-  }))
-);
-const MarketsPage = lazy(() =>
-  import('@orderly.network/markets').then((m) => ({
-    default: m.MarketsHomePage,
-  }))
-);
-const LeaderboardPage = lazy(() =>
-  import('@orderly.network/trading-leaderboard').then((m) => ({
-    default: m.LeaderboardPage,
-  }))
-);
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <App />,
-    children: [
-      { index: true, element: <Navigate to="/perp/PERP_ETH_USDC" /> },
-      {
-        path: 'perp/:symbol',
-        element: (
-          <Suspense fallback={<div>Loading...</div>}>
-            <TradingPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'portfolio',
-        children: [{ index: true, element: <PortfolioOverview /> }],
-      },
-      { path: 'markets', element: <MarketsPage /> },
-      { path: 'leaderboard', element: <LeaderboardPage /> },
-    ],
-  },
-]);
+import { VaultsPage as VaultsPageComponent } from '@orderly.network/vaults';
+<VaultsPageComponent />;
 ```
 
-## 6. Customizing Pages
+## 7. Affiliate / Referral
 
-### Disable Features
+Render `Dashboard.DashboardPage` inside `<ReferralProvider>`:
 
 ```tsx
-import { TradingPage, TradingFeatures } from '@orderly.network/trading';
+import { Dashboard, ReferralProvider } from '@orderly.network/affiliate';
 
-<TradingPage
-  symbol="PERP_ETH_USDC"
-  tradingViewConfig={config}
-  disableFeatures={[TradingFeatures.Footer, TradingFeatures.SlippageSetting]}
-/>;
-```
-
-### Override Sections
-
-```tsx
-import { TradingPage, TradingFeatures } from '@orderly.network/trading';
-
-<TradingPage
-  symbol="PERP_ETH_USDC"
-  tradingViewConfig={config}
-  overrideFeatures={{
-    [TradingFeatures.Header]: <CustomHeader />,
-    [TradingFeatures.Footer]: <CustomFooter />,
-  }}
-/>;
-```
-
-### Custom Styling
-
-All components accept `className` prop and use Tailwind classes with `oui-` prefix:
-
-```tsx
-<MarketsHomePage className="custom-markets-page" />
-```
-
-```css
-.custom-markets-page {
-  --oui-color-primary: #7b61ff;
+export default function AffiliateIndex() {
+  return (
+    <ReferralProvider>
+      <Dashboard.DashboardPage />
+    </ReferralProvider>
+  );
 }
 ```
 
-## 7. Responsive Design
+## Routing
 
-All page components automatically handle desktop and mobile layouts:
+Routes are defined in `app/main.tsx` with `createBrowserRouter` and a `basename` of `import.meta.env.BASE_URL`. All pages are lazy-loaded.
 
-- **Desktop**: Full multi-panel layouts
-- **Mobile**: Stacked layouts with bottom navigation, sheets for detail views
+```tsx
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <App />,
+      errorElement: <ErrorBoundary />,
+      children: [
+        { index: true, element: <IndexPage /> },
+        {
+          path: 'perp',
+          element: <PerpLayout />,
+          children: [
+            { index: true, element: <PerpIndex /> },
+            { path: ':symbol', element: <PerpSymbol /> },
+          ],
+        },
+        {
+          path: 'portfolio',
+          element: <PortfolioLayout />,
+          children: [
+            /* …see above… */
+          ],
+        },
+        {
+          path: 'markets',
+          element: <MarketsLayout />,
+          children: [{ index: true, element: <MarketsIndex /> }],
+        },
+        {
+          path: 'leaderboard',
+          element: <LeaderboardLayout />,
+          children: [{ index: true, element: <LeaderboardIndex /> }],
+        },
+        {
+          path: 'rewards',
+          element: <RewardsLayout />,
+          children: [
+            { index: true, element: <RewardsIndex /> },
+            { path: 'affiliate', element: <RewardsAffiliate /> },
+          ],
+        },
+        {
+          path: 'vaults',
+          element: <VaultsLayout />,
+          children: [{ index: true, element: <VaultsIndex /> }],
+        },
+        {
+          path: 'swap',
+          element: <SwapLayout />,
+          children: [{ index: true, element: <SwapIndex /> }],
+        },
+        {
+          path: 'points',
+          element: <PointsLayout />,
+          children: [{ index: true, element: <PointsIndex /> }],
+        },
+      ],
+    },
+  ],
+  { basename: basePath }
+);
+```
+
+## Responsive Design
+
+Page components handle desktop/mobile internally. Use `useScreen()` (from `@orderly.network/ui`) for your own layout decisions:
 
 ```tsx
 import { useScreen } from '@orderly.network/ui';
-
-function MyPage() {
-  const { isMobile, isTablet, isDesktop } = useScreen();
-
-  return isMobile ? <MobileView /> : <DesktopView />;
-}
-```
-
-## Installation
-
-```bash
-npm install @orderly.network/trading \
-            @orderly.network/portfolio \
-            @orderly.network/markets \
-            @orderly.network/trading-leaderboard \
-            @orderly.network/affiliate
+const { isMobile } = useScreen();
 ```
 
 ## Best Practices
 
-1. **Lazy load pages** for better initial bundle size
-2. **Persist symbol** in localStorage for user convenience
-3. **Handle symbol changes** with URL updates for bookmarkable pages
-4. **Configure TradingView** with custom colors matching your theme
-5. **Provide share backgrounds** for PnL sharing feature
-6. **Use Suspense boundaries** for smooth loading states
+1. **Lazy-load every page** (the template imports `app/pages/...` lazily in `main.tsx`).
+2. **Wrap routes in `Scaffold`** so nav/footer/account menu are consistent.
+3. **Persist the symbol** (the template calls `updateSymbol(symbol)` on change) so deep links and the index route restore it.
+4. **Drive `tradingViewConfig` / `sharePnLConfig` from `useOrderlyConfig()`** so they follow the active theme.
+5. **Use `onSymbolChange` to update the URL** for bookmarkable trading pages.
 
 ## Related Skills
 
-- **orderly-sdk-dex-architecture** - Project structure and providers
-- **orderly-sdk-install-dependency** - Installing packages
-- **orderly-sdk-trading-workflows** - Trading functionality
-- **orderly-sdk-theming** - Customizing appearance
+- **orderly-sdk-dex-architecture** - Project structure, providers, routing entry point
+- **orderly-sdk-theming** - Theme config behind `tradingViewConfig`
+- **orderly-sdk-trading-workflows** - Trading functionality details
+- **orderly-ui-components** - Granular widgets vs. these high-level pages

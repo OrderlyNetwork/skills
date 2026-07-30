@@ -1,43 +1,43 @@
 ---
 name: orderly-sdk-dex-architecture
-description: Complete DEX architecture guide including project structure, provider hierarchy, network configuration, TradingView setup, and provider configuration.
+description: Complete DEX architecture guide including project structure, provider hierarchy, network configuration, TradingView setup, and build/deploy.
 ---
 
 # Orderly Network: SDK DEX Architecture
 
-A comprehensive guide to architecting and scaffolding a complete DEX application using the Orderly Network Components SDK.
+A comprehensive guide to architecting and scaffolding a complete DEX application using the Orderly Network Components SDK. All examples below mirror the up-to-date reference template (SDK `3.1.x`).
 
 ## When to Use
 
 - Setting up a new DEX project
 - Understanding the provider hierarchy
-- Configuring network settings
+- Configuring network settings and chain filters
 - Setting up TradingView charts
-- Understanding runtime configuration
+- Understanding provider configuration
 
 ## Prerequisites
 
-- Node.js 18+ installed
+- Node.js 20+ installed (enforced in `package.json` `engines`)
 - Orderly SDK packages installed (see `orderly-sdk-install-dependency`)
 - React 18+ project with TypeScript
-- Vite or similar build tool
+- Vite 7+ build tool
 
 ## Overview
 
 This skill covers the complete architecture for building a production-ready DEX:
 
-- Project structure and setup
+- Project structure and setup (source dir is `app/`, not `src/`)
+- Configuration via Vite `.env` and `import.meta.env`
 - Provider hierarchy and configuration
-- **Network configuration (REQUIRED)** - mainnet/testnet and supported chains
-- **TradingView chart setup (REQUIRED for charts)** - charting library files
+- **Network configuration** — mainnet/testnet, chain filters, default chain
+- **TradingView chart setup** — charting library files
 - Routing and page components
-- Runtime configuration
-- Build and deployment
+- Build and deployment (base path, SPA output)
 
 **Critical Configuration**: Every DEX must have:
 
-1. `brokerId` - Your Orderly broker ID
-2. `networkId` - Either "mainnet" or "testnet"
+1. `brokerId` — Your Orderly broker ID (falls back to `"demo"`)
+2. `networkId` — Either `"mainnet"` or `"testnet"`
 3. Proper wallet connector setup with matching network
 4. TradingView charting library in `public/tradingview/` (for chart functionality)
 
@@ -46,168 +46,237 @@ This skill covers the complete architecture for building a production-ready DEX:
 ```
 my-dex/
 ├── public/
-│   ├── config.js              # Runtime configuration
 │   ├── favicon.webp
 │   ├── locales/               # i18n translations
-│   │   ├── en.json
 │   │   └── extend/            # Custom translations
 │   ├── pnl/                   # PnL share poster backgrounds
-│   │   ├── poster_bg_1.png
-│   │   └── poster_bg_2.png
 │   └── tradingview/           # TradingView library (REQUIRED for charts)
 │       ├── chart.css          # Custom chart styles
 │       └── charting_library/  # TradingView charting library files
-├── src/
-│   ├── main.tsx               # Entry point
-│   ├── App.tsx                # Root component with router
+├── app/                       # <-- source root (NOT src/)
+│   ├── main.tsx               # Entry point — mounts React (router + providers)
+│   ├── App.tsx                # Root layout (provider + <Outlet/>)
 │   ├── components/
 │   │   ├── orderlyProvider/   # SDK provider setup
 │   │   │   ├── index.tsx      # Main provider wrapper
-│   │   │   └── walletConnector.tsx
+│   │   │   ├── walletConnector.tsx
+│   │   │   ├── privyConnector.tsx
+│   │   │   └── orderlyLocaleProvider.tsx
 │   │   ├── ErrorBoundary.tsx
 │   │   └── LoadingSpinner.tsx
-│   ├── pages/
-│   │   ├── perp/              # Trading pages
-│   │   ├── portfolio/         # Portfolio pages
-│   │   ├── markets/           # Markets pages
-│   │   └── leaderboard/       # Leaderboard pages
+│   ├── pages/                 # route components
+│   │   ├── perp/              # trading (index + [symbol])
+│   │   ├── portfolio/
+│   │   ├── markets/
+│   │   ├── leaderboard/
+│   │   ├── rewards/
+│   │   ├── vaults/
+│   │   ├── swap/
+│   │   └── points/
 │   ├── utils/
-│   │   ├── config.tsx         # App configuration
-│   │   ├── walletConfig.ts    # Wallet setup
-│   │   ├── runtime-config.ts  # Runtime config loader
-│   │   └── storage.ts         # Local storage utils
+│   │   ├── config.tsx         # App configuration (nav, scaffold props)
+│   │   ├── walletConfig.ts    # Wallet connectors
+│   │   ├── theme-config.ts    # resolveDexThemeConfig()
+│   │   ├── trading-view-config.ts
+│   │   ├── symbol-filter.ts   # createSymbolDataAdapter()
+│   │   └── base-path.ts       # withBasePath() helper
 │   └── styles/
 │       └── index.css          # Global styles + Tailwind
-├── .env                       # Build-time env vars
+├── .env                       # Environment configuration (VITE_* vars read via import.meta.env)
 ├── index.html
 ├── package.json
 ├── tailwind.config.ts
-├── tsconfig.json
+├── tsconfig.json              # paths alias: "@/*": ["./app/*"]
 └── vite.config.ts
+```
+
+## Configuration
+
+`OrderlyAppProvider` and the wallet connectors need a handful of values from your app — most importantly:
+
+| Value         | SDK prop       | Notes                                               |
+| ------------- | -------------- | --------------------------------------------------- |
+| broker ID     | `brokerId`     | Your Orderly broker ID; falls back to `"demo"`      |
+| network       | `networkId`    | `"mainnet"` or `"testnet"`                          |
+| chain list    | `chainFilter`  | `{ mainnet?: [{id}], testnet?: [{id}] }` (not flat) |
+| default chain | `defaultChain` | `{ mainnet: { id } }`                               |
+| themes        | `themes`       | Theme array (see **orderly-sdk-theming**)           |
+| logos         | `appIcons`     | `AppLogos` (see **orderly-sdk-theming**)            |
+
+**How you source these is up to your app** — a static config module, `.env`, anything. The reference template uses Vite `.env` via `import.meta.env.VITE_*` (inlined at build time):
+
+```bash
+# .env (reference template keys — one possible config source)
+VITE_ORDERLY_BROKER_ID=your_broker_id        # unset => "demo" broker
+VITE_ORDERLY_BROKER_NAME=Your DEX Name
+VITE_DEFAULT_CHAIN=42161
+VITE_ORDERLY_MAINNET_CHAINS=42161,10,8453
+VITE_ORDERLY_TESTNET_CHAINS=421614,84532
+VITE_PRIVY_APP_ID=                           # set ONLY to use Privy (see wallet-connection)
+VITE_WALLETCONNECT_PROJECT_ID=               # required for WalletConnect / mobile wallets
+VITE_RESTRICTED_REGIONS=                     # comma-separated ISO codes (see orderly-one-dex)
+VITE_ORDERLY_THEME_CONFIG=                   # JSON theme array (see orderly-sdk-theming)
+```
+
+> **No `config.js` / `window.__RUNTIME_CONFIG__`.** A runtime-config indirection only makes sense for multi-instance deployments where one build is reused with different config — an **Orderly One** concern (see `orderly-one-dex`). For a normal DEX, `.env` (or a static config module) is all you need.
+
+### Entry point — `app/main.tsx`
+
+```tsx
+// app/main.tsx
+import React, { lazy } from 'react';
+import ReactDOM from 'react-dom/client';
+import { HelmetProvider } from 'react-helmet-async';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import App from './App';
+import './styles/index.css';
+
+// ... lazy page imports ...
+
+const router = createBrowserRouter(
+  [
+    /* routes */
+  ],
+  {
+    basename: import.meta.env.BASE_URL || '/',
+  }
+);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <HelmetProvider>
+      <RouterProvider router={router} />
+    </HelmetProvider>
+  </React.StrictMode>
+);
 ```
 
 ## Provider Hierarchy
 
-The SDK requires a specific provider nesting order:
+The SDK requires a specific provider nesting order. `OrderlyLocaleProvider` (i18n) wraps everything; the wallet connector (or Privy) wraps `OrderlyAppProvider`.
 
 ```
-LocaleProvider (i18n)
-└── WalletConnectorProvider (or Privy)
-    └── OrderlyAppProvider
-        ├── (internal) AppConfigProvider
-        ├── (internal) OrderlyThemeProvider
-        ├── (internal) OrderlyConfigProvider (from hooks)
-        ├── (internal) AppStateProvider
-        ├── (internal) UILocaleProvider
-        ├── (internal) TooltipProvider
-        ├── (internal) ModalProvider
-        └── Your App
+OrderlyLocaleProvider (i18n)
+└── Suspense
+    └── WalletConnectorProvider  (or PrivyConnectorProvider)
+        └── OrderlyAppProvider
+            ├── (internal) AppConfigProvider
+            ├── (internal) OrderlyThemeProvider   ← uses the `themes` prop
+            ├── (internal) OrderlyConfigProvider (from hooks)
+            ├── (internal) AppStateProvider
+            ├── (internal) UILocaleProvider
+            ├── (internal) TooltipProvider
+            ├── (internal) ModalProvider
+            └── Your App
 ```
 
-> **Note**: `TooltipProvider` and `ModalProvider` are managed internally by `OrderlyAppProvider`. You do **not** need to add them yourself.
+> `TooltipProvider` and `ModalProvider` are managed internally by `OrderlyAppProvider`. You do **not** add them yourself.
 
-## Main Provider Component
+## OrderlyAppProvider Props
+
+The core provider (`@orderly.network/react-app`). Key props:
+
+| Prop             | Type                                     | Notes                                            |
+| ---------------- | ---------------------------------------- | ------------------------------------------------ |
+| `brokerId`       | `string`                                 | Your broker ID (falls back to `"demo"`)          |
+| `brokerName`     | `string`                                 | Display name                                     |
+| `networkId`      | `"mainnet" \| "testnet"`                 | Active network                                   |
+| `chainFilter`    | `{ mainnet?: [{id}]; testnet?: [{id}] }` | Restrict switchable chains (NOT a flat id array) |
+| `defaultChain`   | `{ mainnet: { id } }`                    | Initial chain                                    |
+| `themes`         | theme array                              | See **orderly-sdk-theming**                      |
+| `appIcons`       | `AppLogos`                               | Logos (see **orderly-sdk-theming**)              |
+| `dataAdapter`    | adapter                                  | Custom symbol data adapter                       |
+| `onChainChanged` | `(chainId, { isTestnet }) => void`       | Fires when the user switches chain               |
+| `restrictedInfo` | `{ customRestrictedRegions?: string[] }` | Geo-restriction (see **orderly-one-dex**)        |
+
+> `TooltipProvider`, `ModalProvider`, `AppConfigProvider`, `OrderlyThemeProvider`, `OrderlyConfigProvider`, and `AppStateProvider` are all mounted **internally** by `OrderlyAppProvider`. Do not add them yourself.
+
+## Minimal Provider
+
+The provider nesting is: i18n (`OrderlyLocaleProvider`) → wallet connector → `OrderlyAppProvider`. Pass neutral config values from your app (sourced however you prefer):
 
 ```tsx
-// src/components/orderlyProvider/index.tsx
-import { ReactNode, useCallback, Suspense, lazy } from 'react';
+// app/components/orderlyProvider/index.tsx
+import { ReactNode, useCallback } from 'react';
 import { OrderlyAppProvider } from '@orderly.network/react-app';
-import { LocaleProvider, LocaleCode, defaultLanguages } from '@orderly.network/i18n';
 import type { NetworkId } from '@orderly.network/types';
-import { useOrderlyConfig } from '@/utils/config';
-import { getRuntimeConfig, getRuntimeConfigBoolean } from '@/utils/runtime-config';
+import { OrderlyLocaleProvider } from './orderlyLocaleProvider';
+import { WalletConnector } from './walletConnector';
 
-const NETWORK_ID_KEY = 'orderly_network_id';
-
-const getNetworkId = (): NetworkId => {
-  if (typeof window === 'undefined') return 'mainnet';
-
-  const disableMainnet = getRuntimeConfigBoolean('VITE_DISABLE_MAINNET');
-  const disableTestnet = getRuntimeConfigBoolean('VITE_DISABLE_TESTNET');
-
-  if (disableMainnet && !disableTestnet) return 'testnet';
-  if (disableTestnet && !disableMainnet) return 'mainnet';
-
-  return (localStorage.getItem(NETWORK_ID_KEY) as NetworkId) || 'mainnet';
-};
-
-const WalletConnector = lazy(() => import('./walletConnector'));
-
-const OrderlyProvider = ({ children }: { children: ReactNode }) => {
-  const config = useOrderlyConfig();
-  const networkId = getNetworkId();
+export function OrderlyProvider({ children }: { children: ReactNode }) {
+  const networkId: NetworkId = 'mainnet'; // from your config
 
   const onChainChanged = useCallback((_chainId: number, { isTestnet }: { isTestnet: boolean }) => {
-    const currentNetworkId = getNetworkId();
-    if (
-      (isTestnet && currentNetworkId === 'mainnet') ||
-      (!isTestnet && currentNetworkId === 'testnet')
-    ) {
-      const newNetworkId: NetworkId = isTestnet ? 'testnet' : 'mainnet';
-      localStorage.setItem(NETWORK_ID_KEY, newNetworkId);
-      window.location.reload();
-    }
+    // flip networkId + reload on mainnet <-> testnet switches
   }, []);
 
-  const onLanguageChanged = (lang: LocaleCode) => {
-    const url = new URL(window.location.href);
-    if (lang === 'en') {
-      url.searchParams.delete('lang');
-    } else {
-      url.searchParams.set('lang', lang);
-    }
-    window.history.replaceState({}, '', url.toString());
-  };
-
   return (
-    <LocaleProvider onLanguageChanged={onLanguageChanged} locale="en" languages={defaultLanguages}>
-      <Suspense fallback={<LoadingSpinner />}>
-        <WalletConnector networkId={networkId}>
-          <OrderlyAppProvider
-            brokerId={getRuntimeConfig('VITE_ORDERLY_BROKER_ID')}
-            brokerName={getRuntimeConfig('VITE_ORDERLY_BROKER_NAME')}
-            networkId={networkId}
-            onChainChanged={onChainChanged}
-            appIcons={config.appIcons}
-          >
-            {children}
-          </OrderlyAppProvider>
-        </WalletConnector>
-      </Suspense>
-    </LocaleProvider>
+    <OrderlyLocaleProvider>
+      <WalletConnector networkId={networkId}>
+        <OrderlyAppProvider
+          brokerId={brokerId} // from your config
+          brokerName={brokerName}
+          networkId={networkId}
+          themes={themes} // see orderly-sdk-theming
+          appIcons={appIcons}
+          chainFilter={{ mainnet: [{ id: 42161 }, { id: 10 }] }} // optional
+          defaultChain={{ mainnet: { id: 42161 } }} // optional
+          onChainChanged={onChainChanged}
+        >
+          {children}
+        </OrderlyAppProvider>
+      </WalletConnector>
+    </OrderlyLocaleProvider>
   );
-};
-
-export default OrderlyProvider;
+}
 ```
+
+> `chainFilter` is `{ mainnet?: [{id}], testnet?: [{id}] }` — **not** a flat array of ids. `defaultChain` is `{ mainnet: { id } }`. Swap the `WalletConnector` for the Privy connector when you want social login (see **orderly-sdk-wallet-connection**).
 
 ## Wallet Connector Setup
 
-> **Note**: Both `solanaInitial` and `evmInitial` props on `WalletConnectorProvider` are **optional**. The provider has sensible defaults and the official templates use it with no props. Pass these props only if you need to customize wallet configuration.
-
-**Minimal Setup (recommended — uses defaults):**
+`WalletConnectorProvider` (`@orderly.network/wallet-connector`) wraps `OrderlyAppProvider`. Both `evmInitial` and `solanaInitial` are **configured** props — they carry the wallet network and the wallet list, so a real DEX passes them rather than omitting them. Disable one side by passing `undefined`:
 
 ```tsx
-// src/components/orderlyProvider/walletConnector.tsx
+// app/components/orderlyProvider/walletConnector.tsx
 import { ReactNode } from 'react';
 import { WalletConnectorProvider } from '@orderly.network/wallet-connector';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import type { NetworkId } from '@orderly.network/types';
+import { getEvmInitialConfig, getSolanaWallets } from '@/utils/walletConfig';
 
-interface Props {
+const WalletConnector = ({
+  children,
+  networkId,
+  disableEvm,
+  disableSolana,
+}: {
   children: ReactNode;
   networkId: NetworkId;
-}
-
-const WalletConnector = ({ children, networkId }: Props) => {
-  return <WalletConnectorProvider>{children}</WalletConnectorProvider>;
-};
-
+  disableEvm?: boolean; // from your config
+  disableSolana?: boolean; // from your config
+}) => (
+  <WalletConnectorProvider
+    evmInitial={disableEvm ? undefined : getEvmInitialConfig()}
+    solanaInitial={
+      disableSolana
+        ? undefined
+        : {
+            network:
+              networkId === 'mainnet' ? WalletAdapterNetwork.Mainnet : WalletAdapterNetwork.Devnet,
+            wallets: getSolanaWallets(networkId),
+          }
+    }
+  >
+    {children}
+  </WalletConnectorProvider>
+);
 export default WalletConnector;
 ```
 
-## Network Configuration (REQUIRED)
+> `networkId` must be consistent between `WalletConnectorProvider` (Solana network) and `OrderlyAppProvider`. See **orderly-sdk-wallet-connection** for the `evmInitial` / `solanaInitial` shapes and the Privy connector.
 
-**IMPORTANT**: Every Orderly DEX must configure the network properly.
+## Network Configuration
 
 ### Supported Networks
 
@@ -229,115 +298,38 @@ export default WalletConnector;
 | Base Sepolia     | 84532     | Base testnet          |
 | Solana Devnet    | 901901901 | Solana devnet         |
 
-### Network ID Configuration
+### Chain Filter
 
-The `networkId` prop determines whether your DEX connects to mainnet or testnet.
-
-```tsx
-import type { NetworkId } from '@orderly.network/types';
-
-// Network ID must be "mainnet" or "testnet"
-const networkId: NetworkId = 'mainnet'; // or "testnet"
-```
-
-### Complete Provider Setup with Network Config
+Restrict which chains users can switch between. `chainFilter` is an object keyed by network, each value an array of `{ id }`:
 
 ```tsx
-<WalletConnectorProvider
-  solanaInitial={{
-    network: networkId === "mainnet"
-      ? WalletAdapterNetwork.Mainnet
-      : WalletAdapterNetwork.Devnet,
-    wallets: [],
-  }}
-  evmInitial={{
-    options: {
-      wallets: [],
-    },
-  }}
->
-  <OrderlyAppProvider
-    brokerId="your_broker_id"
-    brokerName="Your DEX Name"
-    networkId={networkId}
-    onChainChanged={onChainChanged}
-  >
-```
-
-## Runtime Configuration
-
-Use runtime configuration for deployment flexibility:
-
-### public/config.js
-
-```javascript
-window.__RUNTIME_CONFIG__ = {
-  VITE_ORDERLY_BROKER_ID: 'your_broker_id',
-  VITE_ORDERLY_BROKER_NAME: 'Your DEX Name',
-  VITE_DISABLE_MAINNET: 'false',
-  VITE_DISABLE_TESTNET: 'false',
-  VITE_DEFAULT_CHAIN: '42161',
-};
-```
-
-### Runtime Config Loader
-
-```tsx
-// src/utils/runtime-config.ts
-
-export function getRuntimeConfig(key: string): string {
-  if (typeof window !== 'undefined' && window.__RUNTIME_CONFIG__?.[key]) {
-    return window.__RUNTIME_CONFIG__[key];
-  }
-  return import.meta.env[key] || '';
-}
-
-export function getRuntimeConfigBoolean(key: string): boolean {
-  return getRuntimeConfig(key) === 'true';
-}
-
-export function getRuntimeConfigArray(key: string): string[] {
-  const value = getRuntimeConfig(key);
-  if (!value) return [];
-  return value
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-declare global {
-  interface Window {
-    __RUNTIME_CONFIG__?: Record<string, string>;
-  }
-}
+// from VITE_ORDERLY_MAINNET_CHAINS="42161,10,8453"
+//   => { mainnet: [{ id: 42161 }, { id: 10 }, { id: 8453 }] }
+// from VITE_DEFAULT_CHAIN="42161"
+//   => defaultChain = { mainnet: { id: 42161 } }
 ```
 
 ## App Root Component
 
 ```tsx
-// src/App.tsx
+// app/App.tsx
 import { Outlet } from 'react-router-dom';
-import { Suspense } from 'react';
 import OrderlyProvider from '@/components/orderlyProvider';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <OrderlyProvider>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Outlet />
-        </Suspense>
-      </OrderlyProvider>
-    </ErrorBoundary>
+    <OrderlyProvider>
+      <Outlet />
+    </OrderlyProvider>
   );
 }
 ```
 
-## TradingView Chart Setup (REQUIRED)
+`HelmetProvider` and `RouterProvider` live in `main.tsx` (see Configuration). SEO `<Helmet>` and an HTTPS warning are added here in the full template.
 
-> **CRITICAL**: The TradingView charting library must be manually added to your `public/tradingview/` folder.
+## TradingView Chart Setup (REQUIRED for charts)
+
+> **CRITICAL**: The TradingView charting library must be manually added to your `public/tradingview/` folder (it is not distributed via npm).
 
 ### Required Files Structure
 
@@ -359,49 +351,41 @@ public/
 
 ### TradingView Configuration
 
+`TradingPage` accepts a `tradingViewConfig`. In the template it is generated by `createTradingViewConfig(source)` (see **orderly-sdk-theming** for the full color config); inline it looks like:
+
 ```tsx
-// In your TradingPage component
 <TradingPage
   symbol={symbol}
   tradingViewConfig={{
     scriptSRC: '/tradingview/charting_library/charting_library.js',
     library_path: '/tradingview/charting_library/',
     customCssUrl: '/tradingview/chart.css',
-    colorConfig: {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-    },
+    colorConfig: { upColor: '#26a69a', downColor: '#ef5350' },
   }}
 />
 ```
 
 ## Tailwind Configuration
 
-### tailwind.config.ts
-
 ```ts
+// tailwind.config.ts
 import type { Config } from 'tailwindcss';
-import { OUITailwind } from '@orderly.network/ui';
 
 export default {
-  content: [
-    './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',
-    './node_modules/@orderly.network/**/*.{js,mjs}',
-  ],
-  presets: [OUITailwind.preset],
+  // content globs point at app/, NOT src/. No preset, no custom brand colors.
+  content: ['./app/**/{**,.client,.server}/**/*.{js,jsx,ts,tsx}'],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    },
   },
   plugins: [],
 } satisfies Config;
 ```
 
-### src/styles/index.css
-
 ```css
+/* app/styles/index.css */
 @import '@orderly.network/ui/dist/styles.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -409,50 +393,50 @@ export default {
 
 ## Vite Configuration
 
-> **Important**: The wallet connector packages use Node.js built-ins like `Buffer`. You must add polyfills.
+> The wallet connector / Solana packages use Node built-ins (`Buffer`, `crypto`, `stream`). Polyfill **only those three** — do **not** add `util` or `globals` (they break the build). Some deps ship CommonJS that must be interop'd via `vite-plugin-cjs-interop`. Path aliases come from `tsconfig.json` via `vite-tsconfig-paths` (no manual `resolve.alias`).
 
 ```bash
-npm install -D vite-plugin-node-polyfills
+npm install -D vite-plugin-node-polyfills vite-plugin-cjs-interop vite-tsconfig-paths
 ```
 
-### vite.config.ts
-
 ```ts
+// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { cjsInterop } from 'vite-plugin-cjs-interop';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
-import path from 'path';
 
-export default defineConfig({
+export default defineConfig(() => ({
+  base: process.env.PUBLIC_PATH || '/', // base path for sub-path deploys
   plugins: [
     react(),
-    nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'util'],
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
-      },
-    }),
+    tsconfigPaths(), // reads "@/*" from tsconfig.json
+    cjsInterop({ dependencies: ['bs58', '@coral-xyz/anchor', 'lodash'] }),
+    nodePolyfills({ include: ['buffer', 'crypto', 'stream'] }), // NO util, NO globals
   ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-});
+  build: { outDir: 'build/client' },
+  optimizeDeps: { include: ['react', 'react-dom', 'react-router-dom'] },
+}));
+```
+
+`tsconfig.json` path alias:
+
+```json
+{ "compilerOptions": { "paths": { "@/*": ["./app/*"] } } }
 ```
 
 ## Checklist for Production
 
-- [ ] Broker ID configured
-- [ ] WalletConnect project ID (for mobile wallets)
-- [ ] Runtime config.js deployed
-- [ ] TradingView library (if using charts)
-- [ ] Custom branding (logo, favicon, colors)
+- [ ] Broker ID configured in `.env` (or intentionally using `"demo"`)
+- [ ] WalletConnect project ID in `.env` (for mobile wallets)
+- [ ] TradingView library in `public/tradingview/` (if using charts)
+- [ ] Chain filter / default chain set in `.env`
+- [ ] Custom branding (logo, favicon, theme — see orderly-sdk-theming)
 - [ ] Error tracking (Sentry, etc.)
 - [ ] Analytics integration
 - [ ] SSL/HTTPS enabled
+- [ ] `PUBLIC_PATH` set for sub-path deploys
 
 ## Related Skills
 
