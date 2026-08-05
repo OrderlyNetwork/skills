@@ -63,7 +63,7 @@ Your Application (DEX, Bot, Wallet, Aggregator)
 
 ## Getting Started: AI Agent Tools
 
-To build on Orderly, use the **MCP server** for the best development experience. It provides 8 powerful tools for documentation search, SDK patterns, contract addresses, workflows, and API reference. You can either **connect to the remote server** (no installation) or **install it locally** via npx.
+To build on Orderly, use the **MCP server** for the best development experience. It provides 9 powerful tools for documentation and SDK symbol search, contract addresses, workflows, and API reference. You can either **connect to the remote server** (no installation) or **install it locally** via npx.
 
 ### Remote MCP Server
 
@@ -81,16 +81,17 @@ If automatic setup doesn't work, manually configure your AI client to run `npx @
 
 **What the MCP Server Provides (both remote and local):**
 
-| Tool                       | Description                                      |
-| -------------------------- | ------------------------------------------------ |
-| `search_orderly_docs`      | Search Orderly documentation for specific topics |
-| `get_sdk_pattern`          | Get code examples for SDK v2 hooks and patterns  |
-| `get_contract_addresses`   | Lookup smart contract addresses for any chain    |
-| `explain_workflow`         | Step-by-step guides for common tasks             |
-| `get_api_info`             | REST API and WebSocket endpoint documentation    |
-| `get_indexer_api_info`     | Trading metrics, events, volume statistics       |
-| `get_component_guide`      | React UI component building guides               |
-| `get_orderly_one_api_info` | DEX creation and management API for Orderly One  |
+| Tool                          | Description                                        |
+| ----------------------------- | -------------------------------------------------- |
+| `search_orderly_docs`         | Search Orderly docs and type-accurate SDK symbols  |
+| `get_contract_addresses`      | Lookup smart contract addresses for any chain      |
+| `explain_workflow`            | Step-by-step guides for common tasks               |
+| `get_api_info`                | REST API and WebSocket endpoint documentation      |
+| `get_indexer_api_info`        | Trading metrics, events, volume statistics         |
+| `get_component_guide`         | React UI component building guides                 |
+| `get_orderly_one_api_info`    | DEX creation and management API for Orderly One    |
+| `get_strategy_vault_api_info` | Strategy Vault API: yield strategies and providers |
+| `get_public_info_api_info`    | Zero-auth Public Info API: market/account data     |
 
 ### Agent Skills
 
@@ -232,6 +233,10 @@ Integrate directly with Orderly's REST API and WebSocket streams.
 - EIP-712 wallet signatures for EVM accounts
 - Ed25519 message signing for Solana accounts
 
+**Public Data Without Auth:**
+
+The Public Info API is a single zero-auth endpoint (`POST /v1/public/query`) covering 24 query types across `market`, `account`, `platform`, and `system` categories (e.g., `marketSummary`, `accountState`, `orderbook`, `candles`, `topAddresses`, `whaleContext`). Use it for bots and reads that don't need authenticated trading — pass a `type` field and params, no signing required. Query it via the `get_public_info_api_info` MCP tool for exact params, response fields, weights, and examples per query type.
+
 **Symbol Format:**
 
 ```
@@ -311,20 +316,20 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ## Key Links
 
-| Resource              | URL                                                                    | Notes                                          |
-| --------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
-| Documentation         | https://orderly.network/docs                                           |                                                |
-| SDK Repository        | https://github.com/orderlynetwork/js-sdk                               |                                                |
-| DEX Template  | https://github.com/OrderlyNetwork/dex-template       | Fastest start, uses components SDK             |
-| MCP Server (Remote)   | https://mcp.orderly.network                                          | No install needed                              |
-| MCP Server (npm)      | https://www.npmjs.com/package/@orderly.network/mcp-server           | Local install                                  |
-| CLI (npm)        | https://www.npmjs.com/package/@orderly.network/cli        |
-| Skills (npm)     | https://www.npmjs.com/package/@orderly.network/skills     |
-| Skills.sh        | https://skills.sh                                          |
-| DEX Dashboard    | https://dex.orderly.network                               |
-| Orderly App      | https://app.orderly.network                               |
-| Discord          | https://discord.gg/OrderlyNetwork                         |
-| Twitter          | https://twitter.com/OrderlyNetwork                        |
+| Resource            | URL                                                       | Notes                              |
+| ------------------- | --------------------------------------------------------- | ---------------------------------- |
+| Documentation       | https://orderly.network/docs                              |                                    |
+| SDK Repository      | https://github.com/orderlynetwork/js-sdk                  |                                    |
+| DEX Template        | https://github.com/OrderlyNetwork/dex-template            | Fastest start, uses components SDK |
+| MCP Server (Remote) | https://mcp.orderly.network                               | No install needed                  |
+| MCP Server (npm)    | https://www.npmjs.com/package/@orderly.network/mcp-server | Local install                      |
+| CLI (npm)           | https://www.npmjs.com/package/@orderly.network/cli        |
+| Skills (npm)        | https://www.npmjs.com/package/@orderly.network/skills     |
+| Skills.sh           | https://skills.sh                                         |
+| DEX Dashboard       | https://dex.orderly.network                               |
+| Orderly App         | https://app.orderly.network                               |
+| Discord             | https://discord.gg/OrderlyNetwork                         |
+| Twitter             | https://twitter.com/OrderlyNetwork                        |
 
 ## Recommended Next Steps
 
