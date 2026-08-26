@@ -1,6 +1,6 @@
 ---
 name: orderly-one-dex
-description: Create and manage a custom white-label DEX using Orderly One - launch paths, deployment, custom domains, graduation, theming, and admin operations
+description: Create and manage a custom white-label DEX using Orderly One - launch paths, deployment, custom domains, graduation with x402 payment, theming, and admin operations
 ---
 
 # Orderly Network: Orderly One DEX
@@ -10,7 +10,7 @@ description: Create and manage a custom white-label DEX using Orderly One - laun
 1. **A web UI** at [dex.orderly.network](https://dex.orderly.network) where humans can create, configure, and deploy a DEX through a step-by-step wizard.
 2. **A REST API** that an AI agent or script can call to do the same thing programmatically.
 
-> **Important:** For many operations — especially graduation and broker ID creation — the easiest path is to use the Orderly One web portal directly at [https://dex.orderly.network/dex](https://dex.orderly.network/dex). Always inform users that this option exists. Not everything has to be done through the API.
+> **Important:** For graduation and broker ID creation — the step that unlocks fee revenue — agents can pay via the x402 HTTP payment protocol (`POST /api/graduation/graduate`) and register a broker in a single request, no browser needed. The web portal at [https://dex.orderly.network/dex](https://dex.orderly.network/dex) remains the easiest path for non-technical users; always inform them this option exists.
 
 ## Two Launch Paths
 
@@ -58,14 +58,14 @@ Testnet: Sepolia, Arbitrum Sepolia, Base Sepolia
 
 Use `get_orderly_one_api_info` MCP tool for full endpoint details.
 
-| Category        | Description                      | Key Endpoints                                                                               |
-| --------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| **auth**        | Wallet signature authentication  | `/api/auth/nonce`, `/api/auth/verify`, `/api/auth/validate`                                 |
-| **dex**         | DEX CRUD, domains, deployment    | `/api/dex`, `/api/dex/{id}`, `/api/dex/{id}/custom-domain`, `/api/dex/{id}/workflow-status` |
-| **theme**       | AI theme generation              | `/api/theme/modify`, `/api/theme/fine-tune`                                                 |
-| **graduation**  | Demo → full DEX with fee sharing | `/api/graduation/status`, `/api/graduation/fee-options`, `/api/graduation/verify-tx`        |
-| **leaderboard** | Cross-DEX rankings               | `/api/leaderboard`, `/api/leaderboard/broker/{brokerId}`                                    |
-| **stats**       | Platform statistics              | `/api/stats`, `/api/stats/swap-fee-config`                                                  |
+| Category        | Description                      | Key Endpoints                                                                                                           |
+| --------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **auth**        | Wallet signature authentication  | `/api/auth/nonce`, `/api/auth/verify`, `/api/auth/validate`                                                             |
+| **dex**         | DEX CRUD, domains, deployment    | `/api/dex`, `/api/dex/{id}`, `/api/dex/{id}/custom-domain`, `/api/dex/{id}/workflow-status`                             |
+| **theme**       | AI theme generation              | `/api/theme/modify`, `/api/theme/fine-tune`                                                                             |
+| **graduation**  | Demo → full DEX with fee sharing | `/api/graduation/graduate` (x402), `/api/graduation/verify-tx`, `/api/graduation/fee-options`, `/api/graduation/refund` |
+| **leaderboard** | Cross-DEX rankings               | `/api/leaderboard`, `/api/leaderboard/broker/{brokerId}`                                                                |
+| **stats**       | Platform statistics              | `/api/stats`, `/api/stats/swap-fee-config`                                                                              |
 
 ---
 
@@ -188,51 +188,52 @@ Orderly One has its own auth system, separate from the Orderly Network API (`api
 
 ### Graduation (Fee Sharing)
 
-**Prerequisites:** DEX created with `brokerId: "demo"` (not already graduated), payment tokens on a supported chain.
+**Prerequisites:** DEX created with `brokerId: "demo"` (not already graduated), native USDC on Base, Arbitrum, or Ethereum for the x402 payment.
 
 **Step 1 — Get Fee Options:**
 
-`GET /api/graduation/fee-options` → `{ usdc: { amount }, usdt: { amount }, order: { amount, currentPrice }, receiverAddress }`
+`GET /api/graduation/fee-options` → `{ usdc: { amount }, receiverAddress, payerAddress }`
 
-- Low-code: $100 | Custom SDK: $10
-- Payment in USDC, USDT, or ORDER (ORDER amount varies with price)
+- Low-code: $100 | Custom SDK: $10 — paid in USDC via x402
+- `payerAddress` is the authenticated wallet — it must be the wallet that pays
 
-**Step 2 — Send Payment On-Chain:**
+**Step 2 — Pay via x402 (agent-friendly):**
 
-ERC-20 `transfer()` to `receiverAddress` on a supported chain. Save the tx hash.
+`POST /api/graduation/graduate?brokerId=…&makerFee=…&takerFee=…&rwaMakerFee=…&rwaTakerFee=…` with `Authorization: Bearer` — pays the fee and registers the broker in a single request.
 
-| Network | Chains | Tokens |
-|---------|--------|--------|
-| Mainnet | Ethereum, Arbitrum, Base | USDC, USDT, ORDER |
-| Testnet | Sepolia, Arbitrum Sepolia, Base Sepolia | USDC, USDT, ORDER |
+- First POST returns **402** with a `payment-required` response header (base64 JSON): one EIP-3009 USDC `transferWithAuthorization` option per network (base 8453, arbitrum 42161, ethereum 1)
+- Sign the EIP-712 authorization and retry with a `payment-signature` header → **200**: transfer settled on-chain (tx hash in the `PAYMENT-RESPONSE` header, field `.transaction`), broker registered automatically
+- Gasless for the payer — the server relays the settlement; invalid params return 400/401 before charging and cancel the payment
+- The EIP-3009 payer wallet must be the same wallet as the Bearer-authenticated account
+- x402 clients (`@x402/fetch`) default `spendControls.maxAmountPerPayment` to $1 — raise it to cover the fee
+- Two-step mode: POST without query params (no Bearer needed — the payment is the auth), then call `verify-tx` (Step 3) with the settlement tx hash and `paymentType: "usdc"`
+- If the payment settles but graduation fails, reclaim it: `POST /api/graduation/refund` `{txHash, chain}` (Bearer, payer wallet)
 
-**Step 3 — Verify Transaction:**
+**Step 3 — Verify Transaction (two-step x402 only; skip if auto-finalized):**
 
 `POST /api/graduation/verify-tx` with:
 
-| Field | Description |
-|-------|-------------|
-| `txHash` | Payment transaction hash |
-| `chain` | `ethereum`, `arbitrum`, `base`, `sepolia`, `arbitrum-sepolia`, `base-sepolia` |
-| `chainId` | Chain ID (e.g. `42161`) |
-| `chain_type` | `"EVM"` |
-| `brokerId` | Your chosen unique broker ID |
-| `makerFee` | Maker fee in bps (min 3) |
-| `takerFee` | Taker fee in bps (min 6, typically 2x maker) |
-| `rwaMakerFee` | RWA maker fee in bps |
-| `rwaTakerFee` | RWA taker fee in bps |
-| `paymentType` | `"USDC"`, `"USDT"`, or `"ORDER"` |
+| Field         | Description                                                      |
+| ------------- | ---------------------------------------------------------------- |
+| `txHash`      | Settlement transaction hash from the `PAYMENT-RESPONSE` header   |
+| `chain`       | The chain you paid on: `base`, `arbitrum`, or `ethereum`         |
+| `brokerId`    | Desired broker ID (5-15 chars, `^[a-z0-9_-]+$`)                  |
+| `makerFee`    | Maker fee in bps (-0.5 to 15, 0.1 increments; negative = rebate) |
+| `takerFee`    | Taker fee in bps (1 to 15, 0.1 increments)                       |
+| `rwaMakerFee` | RWA maker fee in bps (-0.5 to 15)                                |
+| `rwaTakerFee` | RWA taker fee in bps (1 to 15)                                   |
+| `paymentType` | `usdc` — pass it explicitly (default is `order`)                 |
 
-The API verifies: tx exists, sender matches authenticated user, recipient is correct `receiverAddress`, amount meets fee, tx not reused, `brokerId` not taken.
+The API verifies: tx exists, sender matches authenticated user, recipient is correct, amount meets fee, tx not reused, `brokerId` not taken. The broker ID is created here — but graduation is not finished until Step 4.
 
 **Step 4 — Register Admin Wallet (required to complete graduation):**
 
-**EVM Wallet:**
+**EVM Wallet (agents):**
 
-1. `GET https://api.orderly.org/v1/registration_nonce`
-2. Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }`
-3. `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress, chainType: "EVM" }`
-4. `POST /api/graduation/finalize-admin-wallet` (empty body)
+1. `GET https://api.orderly.org/v1/registration_nonce?address={yourAddress}`
+2. Sign EIP-712 typed data: `{ brokerId, chainId, timestamp, registrationNonce }` (same brokerId and address you graduated with)
+3. `POST https://api.orderly.org/v1/register_account` with `{ message, signature, userAddress }` → `account_id`
+4. `POST /api/graduation/finalize-admin-wallet` with an **empty JSON body `{}`** + Bearer — binds your own wallet as admin (agents omit the multisig fields)
 
 **Solana Wallet:**
 
@@ -244,16 +245,17 @@ The API verifies: tx exists, sender matches authenticated user, recipient is cor
 2. Execute with signer approvals
 3. `POST /api/graduation/finalize-admin-wallet` with `{ multisigAddress, multisigChainId }`
 
-> **Note:** Step 4 authenticates with the Orderly Network API (`api.orderly.org`), not Orderly One — different auth system (EIP-712/Ed25519).
+> **Note:** Step 4's registration authenticates with the Orderly Network API (`api.orderly.org`), not Orderly One — different auth system (EIP-712/Ed25519). `finalize-admin-wallet` itself uses your Orderly One Bearer token. Confirm with `GET /api/graduation/graduation-status` until `isGraduated: true`.
 
 **Graduation Status & Fees:**
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/graduation/status` | Basic status: `{ currentBrokerId, approved }` |
+| Endpoint                                | Description                                                        |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `GET /api/graduation/status`            | Basic status: `{ currentBrokerId, approved }`                      |
 | `GET /api/graduation/graduation-status` | Detailed: `{ isGraduated, brokerId, isMultisig, multisigAddress }` |
-| `GET /api/graduation/fees` | Current maker/taker/RWA fee rates |
-| `GET /api/graduation/tier` | Builder Staking Programme tier |
+| `GET /api/graduation/fees`              | Current maker/taker/RWA fee rates                                  |
+| `GET /api/graduation/tier`              | Builder Staking Programme tier                                     |
+| `POST /api/graduation/refund`           | Reclaim a settled-but-unused x402 payment: `{txHash, chain}`       |
 
 ---
 
@@ -271,17 +273,19 @@ This skill references the Orderly MCP server. If not installed, see **orderly-on
 
 ## Common Issues
 
-| Issue                       | Solution                                                                                |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| DEX stuck deploying         | Check `/api/dex/{id}/workflow-runs/{runId}` for job failures                            |
-| Domain not working          | CNAME to `{org}.github.io`, wait for DNS propagation                                    |
-| Graduation verify fails     | Confirm tx to `receiverAddress`, wait for confirmations                                 |
-| "Broker ID already taken"   | Choose a different `brokerId` in verify-tx                                              |
-| "Transaction hash already used" | Each tx can only be used once (anti-replay). Send a new payment                     |
-| "Must register EVM address" | Complete admin wallet registration (Step 4) before calling `finalize-admin-wallet`      |
-| "Already graduated"         | Each user can only graduate once                                                        |
-| Logo upload fails           | Check file size limits (250KB primary, 100KB secondary)                                 |
-| Invalid CSS                 | Validate `themeCSS` syntax before submitting                                            |
+| Issue                               | Solution                                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEX stuck deploying                 | Check `/api/dex/{id}/workflow-runs/{runId}` for job failures                                                                                 |
+| Domain not working                  | CNAME to `{org}.github.io`, wait for DNS propagation                                                                                         |
+| Graduation verify fails             | Confirm the settlement tx hash and chain from `PAYMENT-RESPONSE`, wait for confirmations                                                     |
+| "Broker ID already taken"           | Choose a different `brokerId` in verify-tx                                                                                                   |
+| "Transaction hash already used"     | Each tx can only be used once (anti-replay). Send a new payment                                                                              |
+| x402 paid but broker not registered | Two-step: `POST /api/graduation/verify-tx` with the settlement tx hash (`paymentType: "usdc"`); if that fails, `POST /api/graduation/refund` |
+| x402 payment rejected as too small  | Raise the x402 client `spendControls.maxAmountPerPayment` (default $1) to cover the fee                                                      |
+| "Must register EVM address"         | Complete admin wallet registration (Step 4) before calling `finalize-admin-wallet`                                                           |
+| "Already graduated"                 | Each user can only graduate once                                                                                                             |
+| Logo upload fails                   | Check file size limits (250KB primary, 100KB secondary)                                                                                      |
+| Invalid CSS                         | Validate `themeCSS` syntax before submitting                                                                                                 |
 
 ---
 

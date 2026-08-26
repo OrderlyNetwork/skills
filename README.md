@@ -106,7 +106,7 @@ npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
 
 | Category            | Skill                            | Description                                                                                                         |
 | ------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Getting Started** | `orderly-onboarding`             | **START HERE** - Agent onboarding, MCP server setup, skills overview, and developer quickstart                      |
+| **Getting Started** | `orderly-onboarding`             | **START HERE** - Agent onboarding, MCP server setup, quickstart, and programmatic broker ID creation via x402       |
 | **API / Protocol**  | `orderly-api-authentication`     | Complete authentication - EIP-712 (EVM) or Ed25519 message (Solana) signing for account/keys, Ed25519 for API calls |
 |                     | `orderly-trading-orders`         | Place, manage, and cancel orders via REST API or SDK hooks                                                          |
 |                     | `orderly-positions-tpsl`         | Monitor positions, configure TP/SL, manage leverage                                                                 |
@@ -135,6 +135,7 @@ This skill provides:
 - **Architecture**: How the omnichain orderbook infrastructure fits together
 - **AI Agent Tools**: MCP server installation and agent skills setup
 - **Getting Started**: Directives for builders, API developers, and DEX creators
+- **Broker IDs**: Programmatic broker ID creation via Orderly One + x402 payment
 - **Key Links**: Documentation, SDK, example DEX, Discord
 
 **Install MCP Server:**
@@ -310,7 +311,7 @@ Custom DEX management:
 - DEX creation and deployment
 - Custom domain setup
 - Theme customization
-- Graduation (demo to full DEX)
+- Graduation with x402 payment (agent-friendly)
 - Leaderboard integration
 
 ## Development
