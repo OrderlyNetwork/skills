@@ -265,18 +265,41 @@ Examples: `PERP_ETH_USDC`, `PERP_BTC_USDC`, `PERP_SOL_USDC`
 
 ## Orderly CLI
 
-A terminal trading tool (`@orderly.network/cli`) wrapping the full Orderly REST API. **AI-safe**: keys in OS keychain, signing internal, agents only see results. `orderly --help` covers everything.
+`orderly` is a terminal trading client for Orderly Network, distributed as a single static
+binary — no Node.js runtime required. **AI-safe**: wallet and API keys live in the OS
+keychain, signing happens inside the binary, and agents only ever see results. JSON is the
+default output format; `--csv` is available for list data. `orderly --help` covers the full
+command surface.
 
-**Install & Quick Start (Testnet):**
+**Install** — download the archive for your platform from the
+[latest release](https://github.com/OrderlyNetwork/cli/releases/latest):
 
 ```bash
-npm install -g @orderly.network/cli
+# Linux x86_64 (on arm64 use aarch64-unknown-linux-musl)
+curl -fsSL https://github.com/OrderlyNetwork/cli/releases/latest/download/orderly-x86_64-unknown-linux-musl.tar.gz | tar -xz
+install -m 0755 orderly ~/.local/bin/orderly
+
+# macOS Apple silicon (on Intel use x86_64-apple-darwin)
+curl -fsSL https://github.com/OrderlyNetwork/cli/releases/latest/download/orderly-aarch64-apple-darwin.tar.gz | tar -xz
+install -m 0755 orderly ~/.local/bin/orderly
+```
+
+Windows: download `orderly-x86_64-pc-windows-msvc.zip` (or `aarch64-pc-windows-msvc` on ARM)
+from the same release, extract it, and add the directory to `PATH`. Asset names are
+unversioned, so `releases/latest/download/...` URLs are stable and safe to script. See
+[INSTALL.md](https://github.com/OrderlyNetwork/cli/blob/master/INSTALL.md) for SHA-256
+checksums, cosign signatures and build-provenance verification.
+
+**Quick Start (Testnet):**
+
+```bash
 orderly wallet-create --type EVM --network testnet
 orderly wallet-register --broker-id demo --network testnet
-orderly faucet-usdc <address> --chain-id 421614 --network testnet
-orderly wallet-add-key --network testnet
+orderly faucet-usdc <address> --broker-id demo --chain-id 421614 --network testnet
+orderly wallet-add-key --broker-id demo --scope read,trading --network testnet
 orderly auth-list --network testnet
-orderly order-place PERP_ETH_USDC BUY MARKET 0.01 --account <id> --network testnet
+orderly account-balance --account <account-id> --network testnet
+orderly order-place PERP_ETH_USDC BUY MARKET 0.01 --account <account-id> --network testnet
 ```
 
 **Note:** `--account` is required for authenticated commands (get IDs via `auth-list`). Hex IDs must be shell-quoted. Default network is testnet — pass `--network mainnet` for production. Linux requires `libsecret`.
@@ -345,21 +368,21 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 ## Key Links
 
-| Resource             | URL                                                       | Notes                              |
-| -------------------- | --------------------------------------------------------- | ---------------------------------- |
-| Documentation        | https://orderly.network/docs                              |                                    |
-| SDK Repository       | https://github.com/orderlynetwork/js-sdk                  |                                    |
-| DEX Template         | https://github.com/OrderlyNetwork/dex-template            | Fastest start, uses components SDK |
-| MCP Server (Remote)  | https://mcp.orderly.network                               | No install needed                  |
-| MCP Server (npm)     | https://www.npmjs.com/package/@orderly.network/mcp-server | Local install                      |
-| CLI (npm)            | https://www.npmjs.com/package/@orderly.network/cli        |
-| Skills (npm)         | https://www.npmjs.com/package/@orderly.network/skills     |
-| Skills.sh            | https://skills.sh                                         |
-| DEX Dashboard        | https://dex.orderly.network                               |
-| Orderly One API spec | https://dex-api.orderly.network/openapi.json              | Agent quickstart inside            |
-| Orderly App          | https://app.orderly.network                               |
-| Discord              | https://discord.gg/OrderlyNetwork                         |
-| Twitter              | https://twitter.com/OrderlyNetwork                        |
+| Resource              | URL                                                       | Notes                              |
+| --------------------- | --------------------------------------------------------- | ---------------------------------- |
+| Documentation         | https://orderly.network/docs                              |                                    |
+| SDK Repository        | https://github.com/orderlynetwork/js-sdk                  |                                    |
+| DEX Template          | https://github.com/OrderlyNetwork/dex-template            | Fastest start, uses components SDK |
+| MCP Server (Remote)   | https://mcp.orderly.network                               | No install needed                  |
+| MCP Server (npm)      | https://www.npmjs.com/package/@orderly.network/mcp-server | Local install                      |
+| CLI (binary releases) | https://github.com/OrderlyNetwork/cli/releases/latest     |
+| Skills (npm)          | https://www.npmjs.com/package/@orderly.network/skills     |
+| Skills.sh             | https://skills.sh                                         |
+| DEX Dashboard         | https://dex.orderly.network                               |
+| Orderly One API spec  | https://dex-api.orderly.network/openapi.json              | Agent quickstart inside            |
+| Orderly App           | https://app.orderly.network                               |
+| Discord               | https://discord.gg/OrderlyNetwork                         |
+| Twitter               | https://twitter.com/OrderlyNetwork                        |
 
 ## Recommended Next Steps
 
@@ -386,9 +409,9 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 **If you want to trade from the terminal or use the CLI:**
 
-1. Install the CLI: `npm install -g @orderly.network/cli`
+1. Install the CLI from the [latest release](https://github.com/OrderlyNetwork/cli/releases/latest) (single static binary, no Node.js required).
 2. Run `orderly --help` to see all commands
-3. Follow the testnet quick start (6 commands, see Orderly CLI section above)
+3. Follow the testnet quick start (7 commands, see Orderly CLI section above)
 4. Use `--broker-id demo` for testing, or create your own broker ID programmatically — see **Broker IDs and Fee Revenue** above
 
 **If you're launching a white-label DEX:**

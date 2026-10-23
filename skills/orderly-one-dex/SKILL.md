@@ -8,7 +8,25 @@ description: Create and manage a custom white-label DEX using Orderly One - laun
 **Orderly One** ([https://dex.orderly.network](https://dex.orderly.network)) is a platform that lets anyone launch a white-label perpetual-futures DEX on Orderly Network — with or without code. It serves as both:
 
 1. **A web UI** at [dex.orderly.network](https://dex.orderly.network) where humans can create, configure, and deploy a DEX through a step-by-step wizard.
-2. **A REST API** that an AI agent or script can call to do the same thing programmatically.
+2. **A REST API** for reads, theming and broker/graduation flows. DEX _creation and deployment_ is human-only — see the agent rule below.
+
+> **Agent rule — how to launch a DEX.**
+> Do **not** provision or deploy a DEX frontend from an autonomous agent. These are blocked:
+> `POST /api/dex/{id}/frontend`, `POST /api/dex/{id}/upgrade`, `DELETE /api/dex/{id}`.
+>
+> `POST /api/dex` is **conditional**: it is allowed only with `integrationType: "custom"`, which
+> records the broker ID with no hosted frontend. Never call it with `integrationType: "low_code"` —
+> that provisions a hosted DEX with no rollback.
+>
+> The sanctioned agent path is:
+>
+> 1. Create the **broker ID** — `POST /api/dex` with `integrationType: "custom"`, then the x402
+>    graduation flow. This is API-driven and allowed.
+> 2. Fork **https://github.com/OrderlyNetwork/dex-template** and follow its `AGENTS.md`.
+> 3. Set the `VITE_*` variables in `.env` (notably `VITE_ORDERLY_BROKER_ID`) and deploy.
+> 4. Verify with the graduation-status endpoint.
+>
+> Humans who want the hosted wizard can still use https://dex.orderly.network.
 
 > **Important:** For graduation and broker ID creation — the step that unlocks fee revenue — agents can pay via the x402 HTTP payment protocol (`POST /api/graduation/graduate`) and register a broker in a single request, no browser needed. The web portal at [https://dex.orderly.network/dex](https://dex.orderly.network/dex) remains the easiest path for non-technical users; always inform them this option exists.
 
@@ -16,7 +34,7 @@ description: Create and manage a custom white-label DEX using Orderly One - laun
 
 | Path               | Description                                                                                                                          | Graduation Fee | Who It's For                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ------------------------------------------------------- |
-| **Low-code**       | Create a branded DEX frontend via Orderly One portal or API. It forks a template repo and deploys to GitHub Pages.                   | $100           | Teams wanting fast launch with minimal frontend work    |
+| **Low-code**       | Create a branded DEX frontend via the portal (human-driven). It forks a template repo and deploys to GitHub Pages.                   | $100           | Teams wanting fast launch with minimal frontend work    |
 | **Custom SDK/API** | Use the Orderly SDK or API to build a fully custom frontend. Graduate via Orderly One to get a broker ID — no DEX frontend required. | $10            | Wallets, existing exchanges, teams wanting full control |
 
 See the official builder onboarding guide: [https://orderly.network/docs/introduction/getting-started/builder-onboarding](https://orderly.network/docs/introduction/getting-started/builder-onboarding)
@@ -58,18 +76,24 @@ Testnet: Sepolia, Arbitrum Sepolia, Base Sepolia
 
 Use `get_orderly_one_api_info` MCP tool for full endpoint details.
 
-| Category        | Description                      | Key Endpoints                                                                                                           |
-| --------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **auth**        | Wallet signature authentication  | `/api/auth/nonce`, `/api/auth/verify`, `/api/auth/validate`                                                             |
-| **dex**         | DEX CRUD, domains, deployment    | `/api/dex`, `/api/dex/{id}`, `/api/dex/{id}/custom-domain`, `/api/dex/{id}/workflow-status`                             |
-| **theme**       | AI theme generation              | `/api/theme/modify`, `/api/theme/fine-tune`                                                                             |
-| **graduation**  | Demo → full DEX with fee sharing | `/api/graduation/graduate` (x402), `/api/graduation/verify-tx`, `/api/graduation/fee-options`, `/api/graduation/refund` |
-| **leaderboard** | Cross-DEX rankings               | `/api/leaderboard`, `/api/leaderboard/broker/{brokerId}`                                                                |
-| **stats**       | Platform statistics              | `/api/stats`, `/api/stats/swap-fee-config`                                                                              |
+| Category        | Description                                                         | Key Endpoints                                                                                                           |
+| --------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **auth**        | Wallet signature authentication                                     | `/api/auth/nonce`, `/api/auth/verify`, `/api/auth/validate`                                                             |
+| **dex**         | DEX CRUD, domains, deployment — create/deploy is **not for agents** | `/api/dex`, `/api/dex/{id}`, `/api/dex/{id}/custom-domain`, `/api/dex/{id}/workflow-status`                             |
+| **theme**       | AI theme generation                                                 | `/api/theme/modify`, `/api/theme/fine-tune`                                                                             |
+| **graduation**  | Demo → full DEX with fee sharing                                    | `/api/graduation/graduate` (x402), `/api/graduation/verify-tx`, `/api/graduation/fee-options`, `/api/graduation/refund` |
+| **leaderboard** | Cross-DEX rankings                                                  | `/api/leaderboard`, `/api/leaderboard/broker/{brokerId}`                                                                |
+| **stats**       | Platform statistics                                                 | `/api/stats`, `/api/stats/swap-fee-config`                                                                              |
 
 ---
 
 ## Create/Update DEX
+
+> **Conditional for agents:** `POST /api/dex` is allowed only with `integrationType: "custom"` to
+> record a broker ID — never with `integrationType: "low_code"`. `POST /api/dex/{id}/frontend`
+> (deploy), `POST /api/dex/{id}/upgrade` and `DELETE /api/dex/{id}` are blocked. See the agent rule
+> at the top. To launch a frontend, fork
+> [dex-template](https://github.com/OrderlyNetwork/dex-template).
 
 Both `POST /api/dex` (create) and `PUT /api/dex/{id}` (update) use `multipart/form-data`.
 
@@ -180,11 +204,18 @@ Orderly One has its own auth system, separate from the Orderly Network API (`api
 
 > **Note:** The graduation "finalize admin wallet" step requires authenticating with the Orderly Network API (`api.orderly.org`) — a separate system using EIP-712 or Ed25519 signing. See the graduation workflow below.
 
-### Create DEX Flow
+### Create DEX Flow (human-only — not for agents)
 
-1. Build `multipart/form-data` with fields above
-2. `POST /api/dex` → returns `{ id, brokerId, repoUrl }`
-3. Poll `GET /api/dex/{id}/workflow-status` until `conclusion: "success"`
+**Agents must not run this flow** — see the agent rule at the top. DEX creation binds a repo, a domain and a deployment with no rollback.
+
+1. Human only: build `multipart/form-data` with fields above (the dashboard wizard at [dex.orderly.network](https://dex.orderly.network) does this for you)
+2. `POST /api/dex` — **human-only when `integrationType: "low_code"`**. The `integrationType: "custom"` variant is the sanctioned agent broker-ID step → returns `{ id, brokerId, repoUrl }`
+3. Poll `GET /api/dex/{id}/workflow-status` until `conclusion: "success"` (read-only, safe for agents)
+
+**Agent path instead:** create the broker ID (see **Graduation** below), fork
+[dex-template](https://github.com/OrderlyNetwork/dex-template), follow its `AGENTS.md`, set the
+`VITE_*` variables in `.env` (notably `VITE_ORDERLY_BROKER_ID`), deploy, then verify with
+`GET /api/graduation/graduation-status`.
 
 ### Graduation (Fee Sharing)
 
