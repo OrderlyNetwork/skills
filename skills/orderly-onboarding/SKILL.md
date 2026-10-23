@@ -268,8 +268,9 @@ Examples: `PERP_ETH_USDC`, `PERP_BTC_USDC`, `PERP_SOL_USDC`
 `orderly` is a terminal trading client for Orderly Network, distributed as a single static
 binary — no Node.js runtime required. **AI-safe**: wallet and API keys live in the OS
 keychain, signing happens inside the binary, and agents only ever see results. JSON is the
-default output format; `--csv` is available for list data. `orderly --help` covers the full
-command surface.
+default output format; `--csv` is available for list data. `orderly schema --json` prints the full
+command manifest (commands, args, required flags, and which commands mutate state), and mutating
+commands accept `--dry-run`. `orderly --help` covers the same surface for humans.
 
 **Install** — download the archive for your platform from the
 [latest release](https://github.com/OrderlyNetwork/cli/releases/latest):
