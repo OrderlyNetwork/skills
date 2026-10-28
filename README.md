@@ -347,6 +347,10 @@ yarn format
 yarn format:check
 ```
 
+### Releasing
+
+Distribution is git-based: pushing to `master` is the release. `npx skills add OrderlyNetwork/skills` reads the repository directly, so new installs and `npx skills update` pick up the latest commit. Tags (`vX.Y.Z`) are human-readable milestones only and do not trigger a publish workflow. The npm package `@orderly.network/skills` is private and is not part of the distribution path.
+
 ## Project Structure
 
 ```

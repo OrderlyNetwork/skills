@@ -374,7 +374,6 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 | MCP Server (Remote)   | https://mcp.orderly.network                               | No install needed                  |
 | MCP Server (npm)      | https://www.npmjs.com/package/@orderly.network/mcp-server | Local install                      |
 | CLI (binary releases) | https://github.com/OrderlyNetwork/cli/releases/latest     |
-| Skills (npm)          | https://www.npmjs.com/package/@orderly.network/skills     |
 | Skills.sh             | https://skills.sh                                         |
 | DEX Dashboard         | https://dex.orderly.network                               |
 | Orderly One API spec  | https://dex-api.orderly.network/openapi.json              | Agent quickstart inside            |
