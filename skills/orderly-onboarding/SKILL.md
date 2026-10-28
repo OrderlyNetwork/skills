@@ -272,24 +272,21 @@ default output format; `--csv` is available for list data. `orderly schema --jso
 command manifest (commands, args, required flags, and which commands mutate state), and mutating
 commands accept `--dry-run`. `orderly --help` covers the same surface for humans.
 
-**Install** — download the archive for your platform from the
-[latest release](https://github.com/OrderlyNetwork/cli/releases/latest):
+**Install** — one line for Linux and macOS (detects the architecture and verifies
+the release checksum):
 
 ```bash
-# Linux x86_64 (on arm64 use aarch64-unknown-linux-musl)
-curl -fsSL https://github.com/OrderlyNetwork/cli/releases/latest/download/orderly-x86_64-unknown-linux-musl.tar.gz | tar -xz
-install -m 0755 orderly ~/.local/bin/orderly
-
-# macOS Apple silicon (on Intel use x86_64-apple-darwin)
-curl -fsSL https://github.com/OrderlyNetwork/cli/releases/latest/download/orderly-aarch64-apple-darwin.tar.gz | tar -xz
-install -m 0755 orderly ~/.local/bin/orderly
+curl -fsSL https://orderly.network/cli.sh | sh
 ```
 
-Windows: download `orderly-x86_64-pc-windows-msvc.zip` (or `aarch64-pc-windows-msvc` on ARM)
-from the same release, extract it, and add the directory to `PATH`. Asset names are
-unversioned, so `releases/latest/download/...` URLs are stable and safe to script. See
-[INSTALL.md](https://github.com/OrderlyNetwork/cli/blob/master/INSTALL.md) for SHA-256
-checksums, cosign signatures and build-provenance verification.
+The binary is installed to `~/.local/bin`; override with `ORDERLY_INSTALL_DIR`, or pin
+a release with `ORDERLY_VERSION=v2.0.1`.
+
+Windows: download `orderly-x86_64-pc-windows-msvc.zip` (or `aarch64-pc-windows-msvc` on
+ARM) from the [latest release](https://github.com/OrderlyNetwork/cli/releases/latest),
+extract it, and add the directory to `PATH`. See
+[INSTALL.md](https://github.com/OrderlyNetwork/cli/blob/master/INSTALL.md) for manual
+archives, SHA-256 checksums, cosign signatures and build-provenance verification.
 
 **Quick Start (Testnet):**
 
