@@ -1,10 +1,15 @@
 # Orderly Network Skills
 
-AI Agent Skills for Orderly Network - Perpetual Futures Trading Infrastructure.
+AI Agent Skills for Orderly Network — perpetual futures trading infrastructure.
+
+Two skills, split by intent:
+
+- **orderly-onboarding** — operate Orderly: the `orderly` CLI, accounts, orders, positions, funds, broker IDs, and MCP setup.
+- **orderly-sdk** — build a DEX or trading UI with the React SDK.
+
+Everything else (REST/WS endpoints, auth signing, SDK hook signatures, contracts, workflows, Orderly One) lives in the Orderly MCP server, which is the reference layer these skills point at.
 
 ## Installation
-
-Install Orderly skills to enhance your AI agent with procedural knowledge for building on Orderly.
 
 ### Quick Install (All Skills)
 
@@ -58,13 +63,7 @@ npx skills add OrderlyNetwork/skills --list
 Install specific skills:
 
 ```bash
-npx skills add OrderlyNetwork/skills --skill orderly-trading-orders --skill orderly-api-authentication
-```
-
-Install all skills in a category:
-
-```bash
-npx skills add OrderlyNetwork/skills --skill '*'
+npx skills add OrderlyNetwork/skills --skill orderly-onboarding --skill orderly-sdk
 ```
 
 ### Global vs Local Installation
@@ -74,245 +73,65 @@ npx skills add OrderlyNetwork/skills --skill '*'
 - Skills available across all your projects
 - Installed to user-level directory
 - Good for agents working across multiple repos
-- Use when: You work on multiple Orderly projects
 
 **Local (no flag):**
 
-- Skills specific to current project
-- Creates `.skills/` directory in repo
+- Skills specific to the current project
+- Creates `.skills/` in the repo
 - Can be committed to version control
-- Use when: Team consistency, project-specific setup
-
-### Recommended Setup for AI Agents
-
-**Complete Setup:**
-
-```bash
-# 1. Install MCP server for documentation access
-npx @orderly.network/mcp-server init --client <your-client>
-
-# 2. Install all skills globally for all agents
-npx skills add OrderlyNetwork/skills --all --agent '*' -g
-```
-
-**Minimal Setup:**
-
-```bash
-# Install only onboarding skill, let agent guide you to others
-npx skills add OrderlyNetwork/skills --skill orderly-onboarding -g
-```
 
 ## Available Skills
 
-| Category            | Skill                            | Description                                                                                                         |
-| ------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Getting Started** | `orderly-onboarding`             | **START HERE** - Agent onboarding, MCP server setup, quickstart, and programmatic broker ID creation via x402       |
-| **API / Protocol**  | `orderly-api-authentication`     | Complete authentication - EIP-712 (EVM) or Ed25519 message (Solana) signing for account/keys, Ed25519 for API calls |
-|                     | `orderly-trading-orders`         | Place, manage, and cancel orders via REST API or SDK hooks                                                          |
-|                     | `orderly-positions-tpsl`         | Monitor positions, configure TP/SL, manage leverage                                                                 |
-|                     | `orderly-websocket-streaming`    | Real-time WebSocket connections for orderbook, executions, positions                                                |
-|                     | `orderly-deposit-withdraw`       | Token deposits, withdrawals, and cross-chain operations                                                             |
-| **SDK / React**     | `orderly-sdk-react-hooks`        | Reference for all Orderly React SDK hooks                                                                           |
-|                     | `orderly-ui-components`          | Pre-built React UI components for trading interfaces                                                                |
-|                     | `orderly-sdk-install-dependency` | Install Orderly SDK packages and related dependencies                                                               |
-|                     | `orderly-sdk-dex-architecture`   | Complete DEX project structure, provider hierarchy, and configuration                                               |
-|                     | `orderly-sdk-page-components`    | Pre-built page components (TradingPage, Portfolio, Markets)                                                         |
-|                     | `orderly-sdk-theming`            | CSS variable theming and customization                                                                              |
-|                     | `orderly-sdk-trading-workflows`  | End-to-end trading flows (connect → deposit → trade → withdraw)                                                     |
-| **Platform**        | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana chains                                                                        |
-|                     | `orderly-sdk-debugging`          | Debug and troubleshoot SDK errors                                                                                   |
-|                     | `orderly-one-dex`                | Create and manage custom DEX with Orderly One API                                                                   |
+| Category            | Skill                | Description                                                                                                     |
+| ------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Getting Started** | `orderly-onboarding` | **START HERE** — platform overview, agent tools (CLI/MCP/SDK), quickstart, broker IDs, chains, token, key links |
+| **SDK / React**     | `orderly-sdk`        | Build a DEX: template-first setup, packages/providers, wallet connection, UI, hooks, theming, debugging         |
 
 ## Skill Details
 
 ### orderly-onboarding
 
-**START HERE** if you're new to Orderly Network.
+Start here for anything Orderly-related — operating an account or understanding the platform.
 
-This skill provides:
+- What Orderly is: architecture, key characteristics, use cases, supported chains
+- Agent surfaces: when to use the CLI, the MCP, or a skill
+- MCP server setup and the full tool reference
+- `orderly` install and version requirements, command discovery
+- Testnet quickstart and account setup
+- Command map for accounts, orders, algo/TP-SL, positions, market data, and funds
+- CLI gotchas (`--account`, hex quoting, symbol case, output formats) and safety rules
+- Broker ID creation: CLI path and the programmatic x402 flow
+- $ORDER token, key links, recommended next steps, and common questions
 
-- **Overview**: What Orderly is and how it works
-- **Architecture**: How the omnichain orderbook infrastructure fits together
-- **AI Agent Tools**: MCP server installation and agent skills setup
-- **Getting Started**: Directives for builders, API developers, and DEX creators
-- **Broker IDs**: Programmatic broker ID creation via Orderly One + x402 payment
-- **Key Links**: Documentation, SDK, example DEX, Discord
+### orderly-sdk
 
-**Install MCP Server:**
+For building a DEX or trading interface.
+
+- Fork `dex-template` as the default path
+- Correct package and import map (there is no `@orderly.network/react`)
+- Provider hierarchy, `OrderlyAppProvider` configuration
+- Wallet connection: EVM, Solana, Privy
+- Page components and hooks, with pointers to the MCP for full signatures
+- `--oui-*` theming and chart colors
+- Tailwind/Vite build setup
+- Debugging table for the common failure modes
+
+## Recommended Setup for AI Agents
 
 ```bash
-npx @orderly.network/mcp-server init --client <claude|cursor|vscode|codex|opencode>
+# 1. Install the MCP server (reference layer: docs, endpoints, SDK symbols, contracts)
+npx @orderly.network/mcp-server init --client <your-client>
+#    or point the client at the remote server: https://mcp.orderly.network
+
+# 2. Install the skills globally
+npx skills add OrderlyNetwork/skills --all --agent '*' -g
+
+# 3. Install the CLI for live operations
+curl -fsSL https://orderly.network/cli.sh | sh
+orderly --version
 ```
 
-**Load Recommended Skills:**
-
-- **Building a DEX**: orderly-sdk-install-dependency, orderly-sdk-dex-architecture, orderly-sdk-wallet-connection, orderly-sdk-trading-workflows
-- **API/Bot Development**: orderly-api-authentication, orderly-trading-orders
-- **Custom DEX (Orderly One)**: orderly-one-dex
-
-### orderly-api-authentication
-
-Complete two-layer authentication system:
-
-**Wallet Authentication (Layer 1):**
-
-- EVM: EIP-712 wallet signatures for account registration and key management
-- Solana: Ed25519 message signing for account registration and key management
-
-**API Authentication (Layer 2):**
-
-- Ed25519 key pair generation
-- Ed25519 request signing for REST API (EVM and Solana)
-- WebSocket authentication
-
-**Environment & Configuration:**
-
-- Environment configuration (mainnet/testnet)
-- Supported chains reference (EVM and Solana)
-- Contract addresses (vault, verifying contracts)
-- Ed25519 request signing for REST API
-- WebSocket authentication
-- Environment configuration (mainnet/testnet)
-- Supported chains reference
-
-### orderly-trading-orders
-
-Order management including:
-
-- Order types (LIMIT, MARKET, IOC, FOK, POST_ONLY)
-- REST API endpoints
-- React SDK useOrderEntry hook
-- Batch operations
-- Order validation
-
-### orderly-positions-tpsl
-
-Position and risk management:
-
-- Position streaming
-- Unrealized PnL tracking
-- Take-Profit / Stop-Loss orders
-- Leverage settings
-- Position closing
-
-### orderly-websocket-streaming
-
-Real-time data streaming:
-
-- Public streams (orderbook, trades, klines)
-- Private streams (execution reports, positions, balance)
-- Authentication flow
-- Connection management
-
-### orderly-deposit-withdraw
-
-Asset management:
-
-- Token deposits via vault
-- Withdrawal flow with signing
-- Cross-chain transfers
-- Internal transfers
-
-### orderly-sdk-react-hooks
-
-Complete hook reference:
-
-- Account hooks (useAccount, useWalletConnector)
-- Trading hooks (useOrderEntry, useOrderStream)
-- Position hooks (usePositionStream, useTPSLOrder)
-- Market data hooks (useOrderbookStream, useMarkPrice)
-- Balance hooks (useCollateral, useBalance)
-
-### orderly-ui-components
-
-Pre-built components:
-
-- OrderEntry
-- Positions table
-- Orderbook
-- WalletConnect
-- Charts (TradingView, Lightweight)
-- Tables, Sheets, Modals
-
-### orderly-sdk-install-dependency
-
-SDK package installation:
-
-- Core packages (react-app, hooks, types, ui)
-- Feature widgets (trading, portfolio, markets)
-- Wallet connectors (EVM and Solana)
-- UI sub-packages for custom integrations
-- Tailwind CSS and Vite polyfill setup
-
-### orderly-sdk-dex-architecture
-
-DEX architecture and setup:
-
-- Project structure and file organization
-- Provider hierarchy and configuration
-- Network configuration (mainnet/testnet)
-- TradingView chart setup
-- Runtime configuration
-
-### orderly-sdk-page-components
-
-Pre-built page components:
-
-- TradingPage - Full trading interface
-- Portfolio pages (Overview, Positions, Orders, Assets, History)
-- MarketsHomePage - Markets listing
-- LeaderboardPage - Trading competitions
-- Router setup and customization
-
-### orderly-sdk-theming
-
-UI customization:
-
-- CSS variable system for colors and styling
-- Brand colors, semantic colors, trading colors
-- Custom fonts and typography
-- TradingView chart colors
-- PnL share backgrounds
-
-### orderly-sdk-trading-workflows
-
-End-to-end trading flows:
-
-- Connect wallet and authenticate
-- Deposit funds
-- Place orders (market, limit)
-- Monitor positions and orders
-- Close positions and withdraw
-
-### orderly-sdk-wallet-connection
-
-Wallet integration:
-
-- EVM wallet support (MetaMask, WalletConnect, etc.)
-- Solana wallet support (Phantom, Solflare)
-- Chain switching and network management
-- Account state management
-- Privy integration for social login
-
-### orderly-sdk-debugging
-
-Debugging and troubleshooting:
-
-- Build and setup errors
-- Common API error codes
-- WebSocket connection monitoring
-- Account state issues
-- Order submission debugging
-
-### orderly-one-dex
-
-Custom DEX management:
-
-- DEX creation and deployment
-- Custom domain setup
-- Theme customization
-- Graduation with x402 payment (agent-friendly)
-- Leaderboard integration
+**Minimal setup:** install only `orderly-onboarding` and let the agent load `orderly-sdk` when the task is to build.
 
 ## Development
 
@@ -358,9 +177,8 @@ orderly-skills/
 ├── skills/
 │   ├── orderly-onboarding/
 │   │   └── SKILL.md
-│   ├── orderly-api-authentication/
-│   │   └── SKILL.md
-│   └── ... (14 more skills)
+│   └── orderly-sdk/
+│       └── SKILL.md
 ├── scripts/
 │   └── validate-skills.ts
 ├── package.json
@@ -374,6 +192,8 @@ orderly-skills/
 
 - [Orderly Documentation](https://orderly.network/docs)
 - [Orderly SDK](https://github.com/OrderlyNetwork/js-sdk)
+- [Orderly CLI](https://github.com/OrderlyNetwork/cli)
+- [DEX Template](https://github.com/OrderlyNetwork/dex-template)
 - [Orderly Discord](https://discord.gg/OrderlyNetwork)
 - [Skills Documentation](https://skills.sh)
 

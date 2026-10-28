@@ -1,6 +1,6 @@
 ---
 name: orderly-onboarding
-description: Agent onboarding for Orderly Network - infrastructure overview, agent tools, quickstart, and programmatic broker ID creation via x402
+description: Agent onboarding for Orderly Network - infrastructure overview, agent tools (CLI, MCP, SDK), quickstart, broker ID creation, supported chains, and key links.
 ---
 
 # Orderly Network: Agent Onboarding
@@ -10,11 +10,11 @@ Orderly is an omnichain orderbook-based trading infrastructure providing perpetu
 ## When to Use
 
 - First time encountering Orderly Network
-- Creating a broker ID to earn trading-fee revenue (fully agent-driven, no browser)
+- Creating a broker ID to earn trading-fee revenue
 - Setting up AI agent tools for Orderly development
 - Understanding the Orderly ecosystem and offerings
 - Finding the right skill or resource for your task
-- Understanding what tools are available for AI agents
+- Trading or managing an account from the terminal
 
 ## What is Orderly Network
 
@@ -38,6 +38,7 @@ Orderly is a combination of an orderbook-based trading infrastructure and a robu
 | **Perps Aggregators** | Access Orderly's shared liquidity directly via API or SDK                  |
 | **Trading Desks**     | Use APIs for CEX-level trading with low latency orderbook                  |
 | **Trading Bots**      | Connect to orderbook for best rates, SL/limit orders, gasless transactions |
+| **AI Agents**         | Operate accounts and trades through the `orderly` CLI                      |
 
 ## Key Advantages
 
@@ -64,15 +65,17 @@ Your Application (DEX, Bot, Wallet, Aggregator)
 
 ## Getting Started: AI Agent Tools
 
-To build on Orderly, use the **MCP server** for the best development experience. It provides 9 powerful tools for documentation and SDK symbol search, contract addresses, workflows, and API reference. You can either **connect to the remote server** (no installation) or **install it locally** via npx.
+There are three agent surfaces. Use each for what it is best at:
 
-### Remote MCP Server
+| Surface            | Use it for                                                            |
+| ------------------ | --------------------------------------------------------------------- |
+| **Orderly CLI**    | Live operations: accounts, orders, positions, funds, market data      |
+| **Orderly MCP**    | Reference: docs, REST/WS endpoints, SDK symbols, contracts, workflows |
+| **Orderly skills** | Procedural knowledge and guardrails (this skill and **orderly-sdk**)  |
 
-Connect to the hosted MCP server at `https://mcp.orderly.network` — no installation required. Uses Streamable HTTP transport with no authentication needed. Point your AI client's MCP config to this URL.
+### Orderly MCP Server
 
-### Local MCP Server
-
-Install the MCP server locally via npx — works offline and gives you full control.
+The MCP server is the reference layer. Connect to the **remote server** at `https://mcp.orderly.network` (Streamable HTTP, no auth, no installation), or **install it locally** via npx:
 
 ```bash
 npx @orderly.network/mcp-server init --client <client>
@@ -93,6 +96,8 @@ If automatic setup doesn't work, manually configure your AI client to run `npx @
 | `get_orderly_one_api_info`    | DEX creation and management API for Orderly One    |
 | `get_strategy_vault_api_info` | Strategy Vault API: yield strategies and providers |
 | `get_public_info_api_info`    | Zero-auth Public Info API: market/account data     |
+
+MCP resources are available too: `orderly://overview`, `orderly://workflows`, `orderly://sdk/hooks`, `orderly://sdk/components`, `orderly://api/rest`, `orderly://api/websocket`, `orderly://contracts`.
 
 ### Agent Skills
 
@@ -116,46 +121,25 @@ npx skills add OrderlyNetwork/skills --all
 # List available skills
 npx skills add OrderlyNetwork/skills --list
 
-# Install specific skill
-npx skills add OrderlyNetwork/skills --skill orderly-trading-orders
+# Install both skills
+npx skills add OrderlyNetwork/skills --skill orderly-onboarding --skill orderly-sdk
 
-# Install multiple skills
-npx skills add OrderlyNetwork/skills --skill orderly-api-authentication --skill orderly-trading-orders
-
-# Install for specific agent
+# Install for a specific agent
 npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 ```
 
-**Global vs Local:**
-
-- **Global (`-g`)**: Available across all projects, installed to user directory
-- **Local**: Project-specific, creates `.skills/` in repo, can be committed to version control
-
 **Available Skills:**
 
-| Category           | Skill                            | Description                                         |
-| ------------------ | -------------------------------- | --------------------------------------------------- |
-| **API / Protocol** | `orderly-api-authentication`     | Two-layer auth: EIP-712 (EVM) + Ed25519 (Solana)    |
-|                    | `orderly-trading-orders`         | Place, manage, cancel orders via REST API or SDK    |
-|                    | `orderly-positions-tpsl`         | Monitor positions, TP/SL, leverage, PnL             |
-|                    | `orderly-websocket-streaming`    | Real-time WebSocket for orderbook and executions    |
-|                    | `orderly-deposit-withdraw`       | Token deposits, withdrawals, cross-chain operations |
-| **SDK / React**    | `orderly-sdk-react-hooks`        | Reference for all React SDK hooks                   |
-|                    | `orderly-ui-components`          | Pre-built React UI components                       |
-|                    | `orderly-sdk-install-dependency` | Install Orderly SDK packages                        |
-|                    | `orderly-sdk-dex-architecture`   | Complete DEX project structure and setup            |
-|                    | `orderly-sdk-page-components`    | Pre-built page components                           |
-|                    | `orderly-sdk-theming`            | CSS variable theming and customization              |
-|                    | `orderly-sdk-trading-workflows`  | End-to-end trading flows                            |
-| **Platform**       | `orderly-sdk-wallet-connection`  | Wallet integration for EVM and Solana               |
-|                    | `orderly-sdk-debugging`          | Debug/troubleshoot SDK errors                       |
-|                    | `orderly-one-dex`                | Create/manage custom DEX with Orderly One API       |
+| Category            | Skill                | Description                                                                                             |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Getting Started** | `orderly-onboarding` | This skill — overview, agent tools, CLI operations, broker IDs, ecosystem reference                     |
+| **SDK / React**     | `orderly-sdk`        | Build a DEX: template-first setup, packages/providers, wallet connection, UI, hooks, theming, debugging |
 
 ## For Builders (SDK & DEX Development)
 
-Build trading interfaces using Orderly's React SDK v2.
+Build trading interfaces using Orderly's React SDK (3.x).
 
-> **Default rule for agents:** when a user wants a DEX, start from the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** — fork, configure, deploy. Only build from scratch with the SDK packages below if the user explicitly needs something the template can't provide (custom layouts, non-trading features, hooks-level control). If the requirement is ambiguous, ask the user before writing code.
+> **Default rule for agents:** when a user wants a DEX, start from the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** — fork, configure, deploy. Only build from scratch with the SDK packages if the user explicitly needs something the template can't provide (custom layouts, non-trading features, hooks-level control). If the requirement is ambiguous, ask the user before writing code.
 
 ### Fastest Way to Get Started (Default)
 
@@ -163,10 +147,10 @@ Fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** to g
 
 1. Fork the repository to your GitHub account
 2. Configure `.env` with your broker ID and name
-3. Customize your theme with **orderly-sdk-theming** (CSS variables and color tokens)
+3. Customize your theme (CSS variables and color tokens)
 4. Deploy to your preferred hosting platform
 
-This template uses the **components SDK** — pre-built page components that work out of the box with less customization. Building from scratch is opt-in: for full control over individual components, use the MCP server and load SDK skills (especially **orderly-sdk-react-hooks** and **orderly-ui-components**) for hooks-level development.
+This template uses the **components SDK** — pre-built page components that work out of the box with less customization. Building from scratch is opt-in: load **orderly-sdk** for the package/import map, provider hierarchy, wallet setup, hooks, and theming, and use the MCP server for exact signatures.
 
 **Core SDK Packages:**
 
@@ -188,11 +172,11 @@ npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 
 **Key Components Available:**
 
-- `OrderEntry` - Order placement form
-- `Orderbook` - Market depth display
-- `PositionsView` - Position management table
-- `TradingPage` - Full trading page
-- `Portfolio` - User portfolio dashboard
+- `TradingPage` - Full trading page (chart, orderbook, order entry, positions)
+- `OrderEntryWidget` - Order placement form
+- `OrderBook` - Market depth display
+- `PositionsWidget` - Position management table
+- `Scaffold` - App layout, navigation, account menu
 - `ConnectWalletButton` - Wallet connection UI
 
 **Orderly One (White-Label DEX):**
@@ -200,17 +184,14 @@ npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets
 Launch your own branded perpetuals DEX without building from scratch. Orderly One provides a turnkey solution with:
 
 - Custom domain and branding
-- Fee revenue sharing after paying graduation fee
+- Fee revenue sharing after paying the graduation fee
 - Full trading infrastructure
 - Custom theme
 
-**Load these skills for SDK development:**
+**Load for SDK development:**
 
-- **orderly-sdk-install-dependency** - Package installation guide
-- **orderly-sdk-dex-architecture** - Project structure and providers
-- **orderly-sdk-wallet-connection** - Wallet integration
-- **orderly-sdk-trading-workflows** - Complete trading flows
-- **orderly-sdk-theming** - Customization guide
+- **orderly-sdk** - the complete build guide
+- MCP `search_orderly_docs` / `get_component_guide` for exact symbols and patterns
 
 ## For API / Bot Developers
 
@@ -236,6 +217,8 @@ Integrate directly with Orderly's REST API and WebSocket streams.
 - EIP-712 wallet signatures for EVM accounts
 - Ed25519 message signing for Solana accounts
 
+Use MCP `get_api_info` with type `auth` for the signing recipe, or let the **orderly CLI** handle keys and signing entirely.
+
 **Public Data Without Auth:**
 
 The Public Info API is a single zero-auth endpoint (`POST /v1/public/query`) covering 24 query types across `market`, `account`, `platform`, and `system` categories (e.g., `marketSummary`, `accountState`, `orderbook`, `candles`, `topAddresses`, `whaleContext`). Use it for bots and reads that don't need authenticated trading — pass a `type` field and params, no signing required. Query it via the `get_public_info_api_info` MCP tool for exact params, response fields, weights, and examples per query type.
@@ -256,62 +239,93 @@ Examples: `PERP_ETH_USDC`, `PERP_BTC_USDC`, `PERP_SOL_USDC`
 - `GET /v1/orderbook/{symbol}` - Orderbook snapshot
 - `GET /v1/public/futures` - Market info
 
-**Load these skills for API development:**
-
-- **orderly-api-authentication** - Complete auth setup
-- **orderly-trading-orders** - Order management
-- **orderly-positions-tpsl** - Position management
-- **orderly-websocket-streaming** - Real-time data
+For endpoint detail, WebSocket streams, and signing examples, query MCP `get_api_info` rather than memorizing them.
 
 ## Orderly CLI
 
-`orderly` is a terminal trading client for Orderly Network, distributed as a single static
-binary — no Node.js runtime required. **AI-safe**: wallet and API keys live in the OS
-keychain, signing happens inside the binary, and agents only ever see results. JSON is the
-default output format; `--csv` is available for list data. `orderly schema --json` prints the full
-command manifest (commands, args, required flags, and which commands mutate state), and mutating
-commands accept `--dry-run`. `orderly --help` covers the same surface for humans.
+`orderly` is the agent-safe terminal client for Orderly Network, distributed as a single static binary — no Node.js runtime required. Wallet and API keys live in the OS keychain, signing happens inside the binary, and agents only ever see results. JSON is the default output; `--csv` is available for list data. Newer builds expose `orderly schema --json` (a machine-readable manifest that marks mutating commands) and per-command `--dry-run`.
 
-**Install** — one line for Linux and macOS (detects the architecture and verifies
-the release checksum):
+**Install** — one line for Linux and macOS (detects the architecture and verifies the release checksum):
 
 ```bash
 curl -fsSL https://orderly.network/cli.sh | sh
+orderly --version
 ```
 
-The binary is installed to `~/.local/bin`; override with `ORDERLY_INSTALL_DIR`, or pin
-a release with `ORDERLY_VERSION=v2.0.1`.
-
-Windows: download `orderly-x86_64-pc-windows-msvc.zip` (or `aarch64-pc-windows-msvc` on
-ARM) from the [latest release](https://github.com/OrderlyNetwork/cli/releases/latest),
-extract it, and add the directory to `PATH`. See
-[INSTALL.md](https://github.com/OrderlyNetwork/cli/blob/master/INSTALL.md) for manual
-archives, SHA-256 checksums, cosign signatures and build-provenance verification.
+The binary is installed to `~/.local/bin`; override with `ORDERLY_INSTALL_DIR`, or pin a release with `ORDERLY_VERSION`. Require **2.x** — `1.x` is the retired Node CLI. Windows: download the `orderly-*-pc-windows-msvc.zip` asset from the [latest release](https://github.com/OrderlyNetwork/cli/releases/latest) and add it to `PATH`. See [INSTALL.md](https://github.com/OrderlyNetwork/cli/blob/master/INSTALL.md) for checksums and signatures.
 
 **Quick Start (Testnet):**
 
 ```bash
-orderly wallet-create --type EVM --network testnet
-orderly wallet-register --broker-id demo --network testnet
-orderly faucet-usdc <address> --broker-id demo --chain-id 421614 --network testnet
-orderly wallet-add-key --broker-id demo --scope read,trading --network testnet
-orderly auth-list --network testnet
-orderly account-balance --account <account-id> --network testnet
-orderly order-place PERP_ETH_USDC BUY MARKET 0.01 --account <account-id> --network testnet
+orderly wallet-create --type EVM
+orderly wallet-register --broker-id demo
+orderly faucet-usdc <address> --broker-id demo --chain-id 421614
+orderly wallet-add-key --broker-id demo --scope read,trading
+orderly auth-list
+orderly account-balance --account <account-id>
+orderly order-place PERP_ETH_USDC BUY MARKET 0.01 --account <account-id>
 ```
 
-**Note:** `--account` is required for authenticated commands (get IDs via `auth-list`). Hex IDs must be shell-quoted. Default network is testnet — pass `--network mainnet` for production. Linux requires `libsecret`.
+Faucet delivery is delayed; check the balance later. `wallet-add-key` remembers the network you used as the default.
+
+**Key rules:**
+
+- **`--account` is required** for authenticated commands. Use `orderly auth-list` (`--ids` for scripting).
+- **Quote hex account IDs** — `--account "0x5a6b…"`; unquoted hex is parsed as a number.
+- **Symbols are uppercase** — `PERP_ETH_USDC`, not `PERP_ETH_usdc`.
+- **Default network is testnet** — pass `--network mainnet` for production.
+- **Output** — compact JSON by default, `--csv` for lists, `--pretty` for readable JSON.
+- **Linux keychain** needs a running Secret Service (gnome-keyring/KWallet).
+- **`auth-export-key` blocks agents** — it requires an interactive TTY and typing `EXPORT`. Never attempt it.
+
+**Command map:**
+
+| Area          | Commands                                                                                                                                           |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup / auth  | `wallet-create`, `wallet-import`, `wallet-list`, `wallet-register`, `wallet-add-key`, `auth-import`, `auth-list`, `auth-show`                      |
+| Account       | `account-info`, `account-balance`, `account-statistics`, `account-limits`, `fee-tier`, `key-info`, `account-liquidations`                          |
+| Orders        | `order-place`, `order-list`, `order-get`, `order-edit`, `order-cancel`, `order-cancel-all`, `order-cancel-by-client-id`, `order-trades`            |
+| Batch orders  | `batch-order-place`, `batch-order-cancel`, `batch-order-cancel-by-client-id`                                                                       |
+| Algo / TP-SL  | `algo-order-place`, `algo-order-list`, `algo-order-edit`, `algo-order-cancel`, `algo-order-cancel-all`, `algo-order-get`, `algo-order-trades`      |
+| Positions     | `positions-list`, `positions-close`, `positions-history`, `leverage`, `trades`, `funding-history`                                                  |
+| Market data   | `market-price`, `market-orderbook`, `market-trades`, `symbols`, `kline`, `funding-rates`, `price-changes`, `open-interest`, `liquidated-positions` |
+| Funds         | `chains`, `tokens`, `deposit-info`, `withdraw`, `asset-history`, `faucet-usdc` (testnet)                                                           |
+| PnL / rewards | `settle-pnl`, `settle-pnl-history`, `referral-info`, `distribution-history`, `volume-stats`, `notification-inbox`, `notification-unread`           |
+| Orderly One   | `broker-create`, `broker-status`                                                                                                                   |
+
+Run `orderly --help`, `orderly <command> --help`, or `orderly schema --json` (newer builds) for the authoritative surface. Algo types: `STOP`, `TP_SL`, `POSITIONAL_TP_SL`, `TRAILING_STOP`, `BRACKET`.
+
+**Safety:** read-only commands are safe. Confirm with the user before placing/cancelling orders, closing positions, changing leverage, withdrawing, settling PnL, or removing/revoking keys. Prefer `--dry-run` where available. Never move real funds on mainnet without explicit user approval.
+
+**Common errors:**
+
+| Symptom                                   | Fix                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `401`                                     | API key not registered or wrong network — run `wallet-add-key`       |
+| `403`                                     | Signature invalid/expired — check the system clock                   |
+| Empty account list                        | Wrong network, or no key stored — `auth-list`, then `wallet-add-key` |
+| `Account not found` / missing `--account` | Run `auth-list` and pass the ID (quoted if hex)                      |
+| Keychain error on Linux                   | Start gnome-keyring/KWallet (Secret Service)                         |
 
 ## Broker IDs and Fee Revenue
 
-Your broker ID is how Orderly attributes trading volume to you — once graduated, you earn a share of the fees generated by trades routed through your broker ID. This is the revenue-generating step for builders, and it is fully agent-driven: no browser required.
+Your broker ID is how Orderly attributes trading volume to you — once graduated, you earn a share of the fees generated by trades routed through your broker ID. This is the revenue-generating step for builders.
 
-| Option            | Cost               | Setup                                           | Revenue     |
-| ----------------- | ------------------ | ----------------------------------------------- | ----------- |
-| **`demo`**        | Free               | None — use `demo` in your config                | None        |
-| **Custom broker** | 10 USDC (one-time) | Self-service via Orderly One API + x402 payment | Fee sharing |
+| Option            | Cost               | Setup                                          | Revenue     |
+| ----------------- | ------------------ | ---------------------------------------------- | ----------- |
+| **`demo`**        | Free               | None — use `demo` in your config               | None        |
+| **Custom broker** | 10 USDC (one-time) | CLI `broker-create`, or Orderly One API + x402 | Fee sharing |
 
-### Create a Custom Broker ID (agent flow)
+**CLI path (interactive):**
+
+```bash
+orderly broker-create my-broker --address 0xYourEvmWallet --network mainnet
+orderly broker-status --address 0xYourEvmWallet --network mainnet
+```
+
+`broker-create` authenticates the EVM wallet, creates a custom-integration DEX record if needed, shows the fee and receiver, then verifies the payment tx and registers the wallet as broker admin. The operator sends the exact amount and pastes the tx hash, so this needs a TTY.
+
+### Create a Custom Broker ID via x402
 
 **Prerequisites:** an EVM wallet holding native USDC on Base (8453), Arbitrum (42161), or Ethereum (1). The payment is gasless for you — you sign an EIP-3009 authorization off-chain and the server relays the settlement, so no ETH is needed. Base URL: `https://dex-api.orderly.network` (testnet: `https://testnet-dex-api.orderly.network` for a cheap dry run). The API's OpenAPI spec (`https://dex-api.orderly.network/openapi.json`) embeds an agent quickstart with this same flow.
 
@@ -321,7 +335,7 @@ Your broker ID is how Orderly attributes trading volume to you — once graduate
 | 2   | Create DEX record                                | `POST /api/dex` (multipart): `brokerName` (3-30 chars), `integrationType: "custom"` — no hosted frontend needed                         |
 | 3   | Check the fee                                    | `GET /api/graduation/fee-options` → `{ usdc: { amount }, receiverAddress, payerAddress }` — `payerAddress` must be your wallet          |
 | 4   | Pay fee + register broker (one request)          | `POST /api/graduation/graduate?brokerId=…&makerFee=…&takerFee=…&rwaMakerFee=…&rwaTakerFee=…` with Bearer — x402 payment, auto-finalizes |
-| 5   | Register wallet as broker admin                  | `GET https://api.orderly.org/v1/registration_nonce` → EIP-712 sign → `POST /v1/register_account` (see **orderly-api-authentication**)   |
+| 5   | Register wallet as broker admin                  | `GET https://api.orderly.org/v1/registration_nonce` → EIP-712 sign → `POST /v1/register_account`                                        |
 | 6   | Finalize                                         | `POST /api/graduation/finalize-admin-wallet` with empty body `{}` + Bearer                                                              |
 | 7   | Verify                                           | `GET /api/graduation/graduation-status` until `isGraduated: true`; `GET /api/leaderboard/broker/{brokerId}`                             |
 
@@ -331,7 +345,7 @@ Your broker ID is how Orderly attributes trading volume to you — once graduate
 
 **Two-step mode & recovery:** POST `graduate` without query params (no Bearer needed — the payment itself is the authentication), then `POST /api/graduation/verify-tx` with the settlement tx hash and `paymentType: "usdc"`. If a payment settles but graduation fails, reclaim it via `POST /api/graduation/refund` `{txHash, chain}` (Bearer, payer wallet).
 
-Humans can also do all of this through the web wizard at [dex.orderly.network](https://dex.orderly.network). For the full graduation reference (Solana/multisig admin wallets, fee tiers, refund recovery), load **orderly-one-dex** or query the `get_orderly_one_api_info` MCP tool.
+Humans can also do all of this through the web wizard at [dex.orderly.network](https://dex.orderly.network). For the full graduation reference (Solana/multisig admin wallets, fee tiers, refund recovery), query MCP `get_orderly_one_api_info` with category `graduation`. Agents may create broker IDs but must not deploy or manage DEX frontends.
 
 ## Supported Chains
 
@@ -341,7 +355,7 @@ Orderly supports multiple EVM and non-EVM chains. To get the current list of sup
 GET https://api.orderly.org/v1/public/chain_info
 ```
 
-This endpoint returns all mainnet and testnet chains currently supported by Orderly, including Arbitrum, Optimism, Base, Ethereum, Polygon, Mantle, Solana, Sei, Avalanche, BSC, Abstract, and more.
+This endpoint returns all mainnet and testnet chains currently supported by Orderly, including Arbitrum, Optimism, Base, Ethereum, Polygon, Mantle, Solana, Sei, Avalanche, BSC, Abstract, and more. The CLI exposes the same data as `orderly chains` and `orderly tokens`.
 
 ## $ORDER Token
 
@@ -373,60 +387,61 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 | DEX Template          | https://github.com/OrderlyNetwork/dex-template            | Fastest start, uses components SDK |
 | MCP Server (Remote)   | https://mcp.orderly.network                               | No install needed                  |
 | MCP Server (npm)      | https://www.npmjs.com/package/@orderly.network/mcp-server | Local install                      |
-| CLI (binary releases) | https://github.com/OrderlyNetwork/cli/releases/latest     |
-| Skills.sh             | https://skills.sh                                         |
-| DEX Dashboard         | https://dex.orderly.network                               |
+| CLI (binary releases) | https://github.com/OrderlyNetwork/cli/releases/latest     |                                    |
+| CLI install script    | https://orderly.network/cli.sh                            | Linux and macOS                    |
+| Skills.sh             | https://skills.sh                                         |                                    |
+| DEX Dashboard         | https://dex.orderly.network                               |                                    |
 | Orderly One API spec  | https://dex-api.orderly.network/openapi.json              | Agent quickstart inside            |
-| Orderly App           | https://app.orderly.network                               |
-| Discord               | https://discord.gg/OrderlyNetwork                         |
-| Twitter               | https://twitter.com/OrderlyNetwork                        |
+| Orderly App           | https://app.orderly.network                               |                                    |
+| Discord               | https://discord.gg/OrderlyNetwork                         |                                    |
+| Twitter               | https://twitter.com/OrderlyNetwork                        |                                    |
 
 ## Recommended Next Steps
 
 **If you want to earn trading-fee revenue:**
 
-1. Follow the agent flow in **Broker IDs and Fee Revenue** above to create your broker ID
-2. Load **orderly-one-dex** for the full graduation and DEX-management reference
-3. Set your `brokerId` in your app, bot, or SDK config so trades attribute fees to you
-4. If the user also wants a DEX frontend, default to the [DEX Template](https://github.com/OrderlyNetwork/dex-template) — see **For Builders**
+1. Create a broker ID via `orderly broker-create` or the x402 flow above
+2. Set your `brokerId` in your app, bot, or SDK config so trades attribute fees to you
+3. If the user also wants a DEX frontend, default to the [DEX Template](https://github.com/OrderlyNetwork/dex-template)
 
 **If you're building a DEX:**
 
 1. Default: fork the **[DEX Template](https://github.com/OrderlyNetwork/dex-template)** — a working DEX in minutes, no SDK wiring needed
-2. Install MCP server: `npx @orderly.network/mcp-server init` or connect to `https://mcp.orderly.network`
+2. Install the MCP server: `npx @orderly.network/mcp-server init` or connect to `https://mcp.orderly.network`
 3. Configure your broker settings in `.env` and customize your theme
-4. Build from scratch only if the user wants more than the template offers — load **orderly-sdk-install-dependency** and **orderly-sdk-dex-architecture**; if unsure, ask the user first
-5. Set up wallet connection with **orderly-sdk-wallet-connection**
+4. Build from scratch only if the template can't do it — load **orderly-sdk** and ask the user first
+5. Set up wallet connection with **orderly-sdk**
 
 **If you're building trading bots or API integrations:**
 
-1. Load **orderly-api-authentication** first
-2. Install MCP server locally or connect to `https://mcp.orderly.network` for API reference
-3. Load **orderly-trading-orders** and **orderly-websocket-streaming**
+1. Use the **orderly CLI** for execution (it owns keys and signing)
+2. Use MCP `get_api_info` for REST/WebSocket details if you need a custom client
+3. Use MCP `get_public_info_api_info` for zero-auth reads
+4. Use the CLI for testnet funding (`orderly faucet-usdc`) while developing
 
-**If you want to trade from the terminal or use the CLI:**
+**If you want to trade from the terminal:**
 
-1. Install the CLI from the [latest release](https://github.com/OrderlyNetwork/cli/releases/latest) (single static binary, no Node.js required).
-2. Run `orderly --help` to see all commands
-3. Follow the testnet quick start (7 commands, see Orderly CLI section above)
-4. Use `--broker-id demo` for testing, or create your own broker ID programmatically — see **Broker IDs and Fee Revenue** above
+1. Install the CLI: `curl -fsSL https://orderly.network/cli.sh | sh`
+2. Run `orderly --help` and follow the testnet quick start above
+3. Use `--broker-id demo` for testing, or create your own broker ID
 
 **If you're launching a white-label DEX:**
 
-1. Install MCP server for Orderly One API tools: `npx @orderly.network/mcp-server init` or connect to `https://mcp.orderly.network`
-2. Load **orderly-one-dex** skill for DEX creation and management workflows
-3. Load **orderly-sdk-theming** skill to understand theme structure for API updates
+1. Connect to the MCP server for Orderly One tools: `https://mcp.orderly.network`
+2. Query `get_orderly_one_api_info` for DEX creation, graduation, and theme endpoints
+3. Load **orderly-sdk** for theme structure and frontend work
 
 **If you're troubleshooting:**
 
-1. Load **orderly-sdk-debugging**
-2. Use MCP server to search documentation (remote or local)
+1. Search the MCP docs with `search_orderly_docs`
+2. For SDK build/runtime issues, load **orderly-sdk**
+3. For CLI errors, see the common errors table above
 
 **For testing:**
 
-- Use Testnet environment for development
-- Request testnet USDC from the faucet: `POST /v1/faucet/usdc` (testnet only)
-- Each account can use faucet up to 3 times
+- Use testnet for development
+- Request test USDC with `orderly faucet-usdc` (testnet only)
+- Each account can use the faucet up to 3 times
 
 ## Common Issues
 
@@ -434,55 +449,34 @@ For full tokenomics details, visit: https://orderly.network/docs/introduction/to
 
 **Default — quick DEX**: Fork the [DEX Template](https://github.com/OrderlyNetwork/dex-template), configure `.env`, and deploy. Uses pre-built components — fastest path, and the right default for most users.
 
-**Only if the user needs more control**: Set up the MCP server — either connect to `https://mcp.orderly.network` (remote, no install) or install locally with `npx @orderly.network/mcp-server init --client <your-client>`. Then load SDK skills like **orderly-sdk-react-hooks** and **orderly-sdk-dex-architecture** to build with the hooks SDK. If it's unclear which the user wants, ask before building from scratch.
-
-Then ask: "How do I connect to Orderly Network?" or load **orderly-sdk-wallet-connection**.
+**Only if the user needs more control**: Set up the MCP server — either connect to `https://mcp.orderly.network` (remote, no install) or install locally with `npx @orderly.network/mcp-server init --client <your-client>`. Then load **orderly-sdk** to build with the hooks SDK. If it's unclear which the user wants, ask before building from scratch.
 
 ### "What's the difference between MCP server and Skills?"
 
 - **MCP Server**: Runtime tools for your AI assistant (documentation search, pattern lookup, API reference) — available as a remote server at `https://mcp.orderly.network` or installable locally via npx
-- **Skills**: Procedural knowledge embedded in your context (how-to guides, code examples, best practices)
+- **Skills**: Procedural knowledge embedded in your context (how-to guides, guardrails, defaults)
 
 Use both for the best experience.
 
 ### "How do I test without real funds?"
 
-Use the Testnet environment:
+Use the testnet environment:
 
+- CLI: `orderly faucet-usdc <address> --broker-id demo --chain-id 421614`
 - API: `https://testnet-api.orderly.org`
 - WebSocket: `wss://testnet-ws.orderly.org/ws`
-- Get test USDC: `POST https://testnet-operator-evm.orderly.org/v1/faucet/usdc`
+- Faucet endpoint: `POST https://testnet-operator-evm.orderly.org/v1/faucet/usdc`
 
 ### "Do I need to handle authentication manually?"
 
-The SDK handles authentication automatically. For API-only integration, load **orderly-api-authentication** for the complete auth flow.
+No. The SDK and the CLI handle authentication automatically. Only a custom REST client needs the raw signing flow — query MCP `get_api_info` with type `auth`, or use `orderly auth-import` / `wallet-add-key` and let the CLI sign.
 
 ### "How do I get a custom broker ID?"
 
-Fully programmatic — no browser needed. Create one via the Orderly One API: authenticate (`POST /api/auth/nonce` → sign → `POST /api/auth/verify`), create a DEX (`POST /api/dex` with `integrationType: "custom"`), pay the one-time **10 USDC** fee through the x402 endpoint (`POST /api/graduation/graduate` — gasless EIP-3009 USDC payment on Base/Arbitrum/Ethereum), then bind your wallet as admin (`register_account` on `api.orderly.org` + `finalize-admin-wallet`). See **Broker IDs and Fee Revenue** above for the full sequence; a testnet dry run is available.
+Two paths: `orderly broker-create` (interactive, manual payment tx) or the x402 flow (fully programmatic, gasless EIP-3009 payment). Both are described in **Broker IDs and Fee Revenue** above. A testnet dry run is available.
 
 ## Related Skills
 
-### API / Protocol
+- **orderly-sdk** — building a DEX or trading UI with the React SDK.
 
-- **orderly-api-authentication** - Complete authentication setup
-- **orderly-trading-orders** - Order management
-- **orderly-positions-tpsl** - Position and risk management
-- **orderly-websocket-streaming** - Real-time data streaming
-- **orderly-deposit-withdraw** - Asset management
-
-### SDK / React
-
-- **orderly-sdk-react-hooks** - React hooks reference
-- **orderly-ui-components** - Pre-built UI components
-- **orderly-sdk-install-dependency** - SDK installation
-- **orderly-sdk-dex-architecture** - DEX architecture
-- **orderly-sdk-page-components** - Page components
-- **orderly-sdk-theming** - Theming guide
-- **orderly-sdk-trading-workflows** - Trading workflows
-
-### Platform
-
-- **orderly-sdk-wallet-connection** - Wallet integration
-- **orderly-sdk-debugging** - Debugging guide
-- **orderly-one-dex** - Orderly One DEX management
+For everything else — raw API signing, endpoint specs, WebSocket streams, SDK hook signatures, contract addresses, deposit/withdraw internals, Orderly One endpoints — use the Orderly MCP rather than a memory dump in a skill.
