@@ -5,7 +5,7 @@ description: Agent onboarding for Orderly Network - infrastructure overview, age
 
 # Orderly Network: Agent Onboarding
 
-Orderly is an omnichain orderbook-based trading infrastructure providing perpetual futures liquidity for decentralized exchanges. This skill is your starting point for building on or learning about Orderly Network.
+Orderly is an omnichain orderbook-based trading infrastructure providing perpetual futures liquidity for decentralized exchanges. Start here for an overview of the platform, the agent tools, and how to run a live Orderly account.
 
 ## When to Use
 
@@ -65,7 +65,7 @@ Your Application (DEX, Bot, Wallet, Aggregator)
 
 ## Getting Started: AI Agent Tools
 
-There are three agent surfaces. Use each for what it is best at:
+Pick the surface by task:
 
 | Surface            | Use it for                                                            |
 | ------------------ | --------------------------------------------------------------------- |
@@ -132,7 +132,7 @@ npx skills add OrderlyNetwork/skills --all --agent claude-code -g
 
 | Category            | Skill                | Description                                                                                             |
 | ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Getting Started** | `orderly-onboarding` | This skill — overview, agent tools, CLI operations, broker IDs, ecosystem reference                     |
+| **Getting Started** | `orderly-onboarding` | Platform overview, agent tools, CLI operations, broker IDs, ecosystem reference                         |
 | **SDK / React**     | `orderly-sdk`        | Build a DEX: template-first setup, packages/providers, wallet connection, UI, hooks, theming, debugging |
 
 ## For Builders (SDK & DEX Development)
@@ -479,4 +479,4 @@ Two paths: `orderly broker-create` (interactive, manual payment tx) or the x402 
 
 - **orderly-sdk** — building a DEX or trading UI with the React SDK.
 
-For everything else — raw API signing, endpoint specs, WebSocket streams, SDK hook signatures, contract addresses, deposit/withdraw internals, Orderly One endpoints — use the Orderly MCP rather than a memory dump in a skill.
+For raw API signing, endpoint specs, WebSocket streams, SDK hook signatures, contract addresses, deposit/withdraw internals, and Orderly One endpoints, use the Orderly MCP.

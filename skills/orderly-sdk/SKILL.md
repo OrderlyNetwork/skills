@@ -3,28 +3,34 @@ name: orderly-sdk
 description: Build an Orderly perpetuals DEX with the React SDK - template-first setup, packages and providers, wallet connection, UI components, hooks, theming, and debugging.
 ---
 
-# Orderly Network: SDK
+# Orderly React SDK
 
-Use this skill to build a DEX or trading interface on Orderly. For live trading from an agent — orders, balances, positions, funds — use the `orderly` CLI instead (see **orderly-onboarding**).
+Orderly's React SDK provides the trading UI, wallet connection, data streams, and order signing for a perpetuals DEX. Start from the template for a working DEX, or from the packages when you want to compose the app yourself.
 
-> This skill carries the decisions and pitfalls that docs lookups get wrong. For complete APIs, signatures, and workflows, query the Orderly MCP; do not duplicate them here.
+## Two ways to start
 
-## Default: fork the template
+Both are valid. The template is the default because it ships a working DEX — trading page, portfolio, markets, wallet connection, theming, and deployment config — with the wiring already done. Building from scratch with the packages gives you full control over layout, routing, and data, and the provider, package, wallet, and theming guidance below applies to both paths.
 
-Fork **[dex-template](https://github.com/OrderlyNetwork/dex-template)** and configure it. It is a working components-SDK DEX, not a starter shell.
+### Fork the template
 
-1. Fork/clone the repo.
-2. Set `.env`: `VITE_ORDERLY_BROKER_ID`, `VITE_ORDERLY_BROKER_NAME`, `VITE_DEFAULT_CHAIN`, `VITE_ORDERLY_MAINNET_CHAINS`, `VITE_ORDERLY_TESTNET_CHAINS`, `VITE_WALLETCONNECT_PROJECT_ID`.
-3. Customize the theme (see **Theming**).
-4. Deploy, then verify the broker with `orderly broker-status --address 0x…`.
+Fork **[dex-template](https://github.com/OrderlyNetwork/dex-template)**.
 
-Build from scratch only when the template cannot meet the requirement (custom layouts, non-trading features, hooks-level control). If the requirement is ambiguous, ask the user before writing SDK wiring.
+1. Fork or clone the repo.
+2. Fill `.env`: `VITE_ORDERLY_BROKER_ID`, `VITE_ORDERLY_BROKER_NAME`, `VITE_DEFAULT_CHAIN`, `VITE_ORDERLY_MAINNET_CHAINS`, `VITE_ORDERLY_TESTNET_CHAINS`, `VITE_WALLETCONNECT_PROJECT_ID`.
+3. Set the theme (see **Theming**).
+4. Deploy, then check the broker with `orderly broker-status --address 0x…`. `orderly` is the Orderly trading CLI; install it from [orderly.network/cli.sh](https://orderly.network/cli.sh).
 
-## Versions and packages
+### Build from scratch
 
-- Current line: SDK **3.x**. All `@orderly.network/*` packages must share the same version; the exception is `@orderly.network/trading-points`, which follows its own line.
-- Do not hardcode patch versions in code or docs. Resolve the current version with `npm view @orderly.network/react-app version` or MCP `search_orderly_docs`.
-- `@orderly.network/hooks` is a transitive dependency of `react-app`; install it explicitly only for a hooks-only app.
+Create a React app, install the packages below, mount the providers, and compose the pages or widgets you need. Nothing about starting from scratch requires a different setup; it only means you write the routing, layout, and page composition yourself.
+
+## Versions
+
+The current line is 3.x. Keep every `@orderly.network/*` package on the same version; `@orderly.network/trading-points` is the exception and follows its own line. Check the installed version with `npm view @orderly.network/react-app version` or MCP `search_orderly_docs` instead of pinning a patch here.
+
+`@orderly.network/hooks` comes in through `react-app`; install it separately only for a hooks-only app.
+
+## Install
 
 ```bash
 # Components-SDK DEX
@@ -39,15 +45,15 @@ npm install @solana/wallet-adapter-base @solana/wallet-adapter-wallets \
             @solana-mobile/wallet-adapter-mobile
 ```
 
-Privy (social login) replaces the standard connector:
+For social login, replace the standard connector:
 
 ```bash
 npm install @orderly.network/wallet-connector-privy @privy-io/cross-app-connect
 ```
 
-## Where components live
+## Packages and imports
 
-Imports matter. There is **no `@orderly.network/react` package** — that import is a common generated-code error.
+Each component is exported from the package that owns it:
 
 | What you need              | Package                                                    | Export                                                |
 | -------------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
@@ -66,11 +72,11 @@ Imports matter. There is **no `@orderly.network/react` package** — that import
 | Markets page               | `@orderly.network/markets`                                 | `MarketsHomePage`, `MarketsProvider`                  |
 | Hooks                      | `@orderly.network/hooks`                                   | `useAccount`, `useOrderEntry`, `useDeposit`, …        |
 
-`@orderly.network/ui-orderbook` and `@orderly.network/ui-chart` do **not** exist. Orderbook lives in `@orderly.network/trading`; the chart is `TradingView` in `@orderly.network/ui`.
+Orderbook components are in `@orderly.network/trading`; the chart is `TradingView` from `@orderly.network/ui`.
 
-## Provider hierarchy
+## Providers
 
-`OrderlyLocaleProvider` → wallet connector (or Privy) → `OrderlyAppProvider` → your app. The wallet connector must wrap `OrderlyAppProvider`, not the other way around.
+Nest them in this order: `OrderlyLocaleProvider` → wallet connector → `OrderlyAppProvider` → app. The wallet connector wraps `OrderlyAppProvider`, not the other way around.
 
 ```tsx
 import { OrderlyAppProvider } from '@orderly.network/react-app';
@@ -93,21 +99,21 @@ function App() {
 }
 ```
 
-- Do **not** add `QueryClientProvider`, `ModalProvider`, `TooltipProvider`, `AppConfigProvider`, `OrderlyThemeProvider`, `OrderlyConfigProvider`, or `AppStateProvider` — `OrderlyAppProvider` mounts them internally.
-- There is no `TradingPageProvider` or `SymbolProvider`; `TradingPage` manages symbol context itself.
-- `chainFilter` is `{ mainnet?: [{ id }], testnet?: [{ id }] }`, not a flat ID array. `defaultChain` is `{ mainnet: { id } }`.
+`OrderlyAppProvider` mounts `QueryClientProvider`, `ModalProvider`, `TooltipProvider`, `AppConfigProvider`, `OrderlyThemeProvider`, `OrderlyConfigProvider`, and `AppStateProvider` internally. Adding any of them again breaks context.
 
-## Wallet connection
+`TradingPage` owns symbol state and needs no extra provider. `chainFilter` takes `{ mainnet?: [{ id }], testnet?: [{ id }] }`. `defaultChain` takes `{ mainnet: { id } }`.
 
-The standard connector takes configured `evmInitial` and `solanaInitial` props; they are not optional in a real DEX. Build them in a `walletConfig.ts` module (the template has one) and keep the Solana network consistent with `OrderlyAppProvider.networkId`.
+## Wallets
 
-`useWalletConnector()` returns a **flat** object — `connect`, `disconnect`, `connecting`, `wallet`, `connectedChain`, `setChain`, `namespace` — not nested under `wallet`.
+The standard connector needs configured `evmInitial` and `solanaInitial` props; both are required in a real deployment. Put the configuration in `walletConfig.ts` (the template has one) and keep the Solana network aligned with `OrderlyAppProvider.networkId`.
 
-For Privy social login, swap `WalletConnectorProvider` for `WalletConnectorPrivyProvider` and set `VITE_PRIVY_APP_ID`. Full provider props and per-wallet config: MCP `search_orderly_docs` with query `wallet connector`.
+`useWalletConnector()` returns a flat object: `connect`, `disconnect`, `connecting`, `wallet`, `connectedChain`, `setChain`, `namespace`. All fields are top-level.
+
+For social login, use `WalletConnectorPrivyProvider` from `@orderly.network/wallet-connector-privy` and set `VITE_PRIVY_APP_ID`. Provider props and per-wallet setup: MCP `search_orderly_docs` with `wallet connector`.
 
 ## Pages and components
 
-Prefer page-level components over hand-assembling widgets:
+Prefer the page components over hand-built widget layouts. The template composes them already; when building from scratch, mount the pages you need on your own routes.
 
 ```tsx
 import { TradingPage } from '@orderly.network/trading';
@@ -116,15 +122,15 @@ import { TradingPage } from '@orderly.network/trading';
 ```
 
 - `Scaffold` (`@orderly.network/ui-scaffold`) provides nav, account menu, and layout.
-- `Portfolio` modules: `OverviewModule`, `PositionsModule`, `OrdersModule`, `AssetsModule`, `HistoryModule`, `FeeTierModule`, `APIManagerModule`.
+- Portfolio modules: `OverviewModule`, `PositionsModule`, `OrdersModule`, `AssetsModule`, `HistoryModule`, `FeeTierModule`, `APIManagerModule`.
 - Markets: `MarketsHomePage`. Vaults: `VaultsPage` from `@orderly.network/vaults`.
 - Leaderboard: `GeneralLeaderboardWidget` from `@orderly.network/trading-leaderboard`. Points: `PointSystemPage` from `@orderly.network/trading-points`. Affiliate: `Dashboard.DashboardPage` inside `ReferralProvider` from `@orderly.network/affiliate`.
 
-For the full page list, routing pattern, and props, use MCP `search_orderly_docs` or copy the template's `app/pages/` structure.
+The template's `app/pages/` shows the routing and prop wiring. For anything not listed here, search the MCP docs.
 
 ## Hooks
 
-The SDK exposes hooks for hooks-level control. Do not reimplement what a hook already provides.
+Use the SDK hooks rather than reimplementing order or position state.
 
 | Area           | Hooks                                                                     |
 | -------------- | ------------------------------------------------------------------------- |
@@ -136,17 +142,17 @@ The SDK exposes hooks for hooks-level control. Do not reimplement what a hook al
 | Funds          | `useDeposit`, `useWithdraw`                                               |
 | Risk           | `useLeverage`, `useMarginRatio`, `useChains`                              |
 
-Critical return shapes:
+Three return shapes cause most mistakes:
 
-- `useAccount()` → `{ account, state }`; `state.status` is a numeric `AccountStatusEnum` from `@orderly.network/types` (`SignedIn` is required for private data and orders).
-- `useOrderEntry(symbol)` → `formattedOrder`, `metaState`, `helper`, `maxQty`, `estLiqPrice`, `submit`. `metaState.errors === null` means the order validates; there is no `isSubmitting`.
-- `useOrderStream({ status: OrderStatus.INCOMPLETE })` — use the enum, not the string `'OPEN'`.
+- `useAccount()` returns `{ account, state }`; `state.status` is a numeric `AccountStatusEnum` from `@orderly.network/types`, and private data or orders require `SignedIn`.
+- `useOrderEntry(symbol)` returns `formattedOrder`, `metaState`, `helper`, `maxQty`, `estLiqPrice`, `submit`. `metaState.errors === null` means the order validates; `isMutating` reports an in-flight submission.
+- `useOrderStream({ status: OrderStatus.INCOMPLETE })` takes the enum, not the string `'OPEN'`.
 
-Full signatures and examples: MCP resource `orderly://sdk/hooks` or `search_orderly_docs` with `scope: "sdk"`.
+Full signatures: MCP resource `orderly://sdk/hooks` or `search_orderly_docs` with `scope: "sdk"`.
 
 ## Theming
 
-Pass 1–6 theme objects to `OrderlyAppProvider`'s `themes` prop. Exactly one must set `isDefault`.
+Pass 1–6 theme objects to `OrderlyAppProvider`'s `themes` prop. Exactly one sets `isDefault`.
 
 ```ts
 const themes = [
@@ -166,19 +172,16 @@ const themes = [
 ];
 ```
 
-- Variables use the `--oui-*` prefix (SDK v2.8+; v1 used `--orderly`). Any subset is valid.
-- Categories: brand, semantic, surfaces/text (`--oui-color-base-1…10`), PnL, gradients, radius/spacing/font.
-- Chart colors belong in `tradingViewColorConfig` on the theme; library paths belong in `tradingViewConfig` on `TradingPage`.
-- Key logos via `appIcons` (`AppLogos`), not by editing package CSS.
+Variables use the `--oui-*` prefix (v2.8+; v1 used `--orderly`). Any subset works. Chart colors live in `tradingViewColorConfig` on the theme; library paths live in `tradingViewConfig` on `TradingPage`. Logos go through `appIcons`.
 
 Full variable list and PnL share posters: MCP `explain_workflow("theming")`.
 
-## Build configuration
+## Build setup
 
-- **Tailwind:** no Orderly preset. Point `content` at `app/**/*.{ts,tsx}` and import `@orderly.network/ui/dist/styles.css` in the CSS entry. Other feature packages reuse those base styles; do not look for per-package CSS.
-- **Vite:** polyfill only `buffer`, `crypto`, and `stream`. Adding `util` or `globals` breaks the build. Interop CommonJS deps with `vite-plugin-cjs-interop`, and load path aliases with `vite-tsconfig-paths`.
+- **Tailwind:** point `content` at `app/**/*.{ts,tsx}` and import `@orderly.network/ui/dist/styles.css` in the CSS entry. Feature packages reuse those base styles, so one stylesheet covers the UI.
+- **Vite:** polyfill only `buffer`, `crypto`, and `stream`. Adding `util` or `globals` breaks the build. Use `vite-plugin-cjs-interop` for CommonJS dependencies and `vite-tsconfig-paths` for aliases.
 - **TradingView:** charts need the TradingView library files served by your app. Copy the template's chart setup; the API does not ship them.
-- **React:** 18+ for the components SDK.
+- **React:** 18+.
 
 ## Debugging
 
@@ -190,12 +193,12 @@ Full variable list and PnL share posters: MCP `explain_workflow("theming")`.
 | Orders rejected                 | `metaState.errors === null`; symbol exact; quantity ≥ min; price in range; free collateral               |
 | Deposit fails                   | ERC-20 allowance first; correct vault address for the chain                                              |
 | Withdraw fails                  | Amount ≤ `maxAmount`; unsettled PnL accounted; wallet prompt accepted                                    |
-| `createClient` / `.mjs` errors  | Bundler interop and Vite polyfills (see **Build configuration**)                                         |
-| Wrong imports / missing exports | Check the package table above; there is no `@orderly.network/react`                                      |
+| `createClient` / `.mjs` errors  | Bundler interop and Vite polyfills (see **Build setup**)                                                 |
+| Wrong imports / missing exports | The component lives in a different package; check the table above                                        |
 
-For a stuck account, log `AccountStatusEnum[state.status]`; for HTTP failures, inspect the SDK's `ApiError` (`status`, `code`, `message`).
+Log `AccountStatusEnum[state.status]` when the account is stuck. For HTTP failures, inspect the SDK's `ApiError` (`status`, `code`, `message`).
 
-## Look things up in the MCP
+## Reference
 
 | Need                                | Call                                                          |
 | ----------------------------------- | ------------------------------------------------------------- |
@@ -205,7 +208,3 @@ For a stuck account, log `AccountStatusEnum[state.status]`; for HTTP failures, i
 | Contract/vault addresses            | `get_contract_addresses`                                      |
 | REST/WS endpoint details            | `get_api_info`                                                |
 | Current version                     | `npm view @orderly.network/react-app version`                 |
-
-## Related skills
-
-- **orderly-onboarding** — CLI operations, broker IDs, MCP setup, and platform overview.
